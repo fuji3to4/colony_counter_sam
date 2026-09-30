@@ -299,7 +299,7 @@ let roi = null;                        // {cx,cy,r}
 let mode = "roi";
 let running = false, cancelFlag = false;
 let renderQueued = false;
-let engine = matchMedia("(pointer:coarse)").matches ? "light" : "sam";
+let engine = "light";
 
 /* ---------- UI helpers ---------- */
 const fmt = (v) => String(v);
