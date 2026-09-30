@@ -43,42 +43,10 @@
   .toolbar button[aria-pressed="true"]{background:#d9f0ec;color:#0c2a2a;border-color:#d9f0ec}
   .toolbar button:disabled{opacity:.4;cursor:not-allowed}
   .toolbar .spacer{flex:1}
-  .toolbar .hint{color:#8fb0b0;font-size:12px;align-self:center;flex-basis:100%;order:10}
-  .toolbar button.src{border-color:#7fc4bd;color:#d9f0ec}
-  #drop .dbtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-  #drop .dbtns button{
-    font:inherit;font-size:15px;border-radius:8px;padding:12px 18px;cursor:pointer;
-    border:1px solid #7fc4bd;background:transparent;color:#e5f3f1;
-  }
-  #drop .dbtns button.cam{background:#d9f0ec;color:#0c2a2a;border-color:#d9f0ec;font-weight:700}
-  .mbar{display:none}
-  @media (max-width:900px){
-    body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
-    .mbar{
-      display:flex;align-items:center;gap:14px;position:fixed;left:0;right:0;bottom:0;z-index:40;
-      background:var(--panel);border-top:1px solid var(--line);
-      padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
-      box-shadow:0 -4px 16px rgba(0,0,0,.12);
-    }
-    .mbar .cnt{flex:1;display:flex;align-items:baseline;gap:8px}
-    .mbar .cnt span{font-size:12px;color:var(--muted)}
-    .mbar .cnt b{font-size:38px;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
-    .mbar button{flex:none;min-width:130px}
-    .mbar .prog{position:absolute;left:0;right:0;top:-1px;height:3px}
-    .mbar .prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
-    .count .num{font-size:64px}
-    #drop{inset:10px;padding:14px}
-  }
-  @media (pointer:coarse){
-    .toolbar button{padding:10px 14px;font-size:14px}
-    button.primary,button.secondary{padding:12px 16px}
-    .help{width:28px;height:28px;font-size:14px}
-    .row input[type=range]{height:32px}
-    .check input{width:20px;height:20px}
-  }
+  .toolbar .hint{color:#8fb0b0;font-size:12px;align-self:center}
   #canvasBox{position:relative;display:flex;justify-content:center;align-items:center;min-height:280px}
-  canvas#view{display:block;max-width:100%;height:auto;touch-action:manipulation;-webkit-touch-callout:none;user-select:none}
-  canvas#view.roi{cursor:crosshair;touch-action:none} canvas#view.add{cursor:copy} canvas#view.remove{cursor:not-allowed}
+  canvas#view{display:block;max-width:100%;height:auto;touch-action:none}
+  canvas#view.roi{cursor:crosshair} canvas#view.add{cursor:copy} canvas#view.remove{cursor:not-allowed}
   #drop{
     position:absolute;inset:14px;border:2px dashed #3d6468;border-radius:8px;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
@@ -125,22 +93,6 @@
   #modelStatus,#runStatus{font-size:13px;color:var(--muted)}
   #modelStatus.ok{color:var(--accent)}
   #modelStatus.err,#runStatus.err{color:var(--warn)}
-
-  .lbl{display:inline-flex;align-items:center;gap:6px}
-  .help{
-    width:20px;height:20px;padding:0;border-radius:50%;border:1px solid var(--accent);
-    background:transparent;color:var(--accent);font:inherit;font-size:12px;font-weight:700;
-    line-height:1;cursor:pointer;flex:none;
-  }
-  .help[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink)}
-  #pop{
-    position:fixed;z-index:50;max-width:310px;background:#14262b;color:#eaf4f3;
-    border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.65;
-    box-shadow:0 8px 24px rgba(0,0,0,.28);display:none;
-  }
-  #pop b{display:block;margin-bottom:4px;font-size:13px}
-  #pop p{margin:0 0 6px} #pop p:last-child{margin:0}
-  #pop .tip{color:#9fd3cd}
 </style>
 </head>
 <body>
@@ -158,25 +110,18 @@
         <button id="mDel" aria-pressed="false" disabled>コロニーを削除</button>
         <button id="clearRoi" disabled>範囲を解除</button>
         <span class="spacer"></span>
-        <button class="src" id="camBtn">撮影</button>
-        <button class="src" id="pickBtn">写真を選択</button>
         <span class="hint" id="modeHint"></span>
       </div>
       <div id="canvasBox">
         <canvas id="view" width="10" height="10" hidden></canvas>
         <div id="drop" tabindex="0" role="button" aria-label="画像を選択">
-          <strong>シャーレの写真を用意してください</strong>
-          <span>真上から、影や反射を避けて撮るとうまくいきます。PCでは画像のドロップも使えます。</span>
-          <div class="dbtns">
-            <button type="button" class="cam" id="dCam">カメラで撮影</button>
-            <button type="button" id="dPick">写真を選択</button>
-          </div>
+          <strong>シャーレの画像をここにドロップ</strong>
+          <span>またはクリックして選択（JPEG / PNG）</span>
         </div>
         <div id="busy" role="status"></div>
       </div>
     </div>
     <input type="file" id="file" accept="image/*" hidden>
-    <input type="file" id="cam" accept="image/*" capture="environment" hidden>
   </section>
 
   <aside>
@@ -195,26 +140,25 @@
     <div class="card">
       <h2>検出設定</h2>
       <div class="row">
-        <span class="lbl"><label for="spacing">探索点の間隔</label><button type="button" class="help" data-help="spacing" aria-expanded="false" aria-label="探索点の間隔の説明">?</button></span><output id="spacingO"></output>
+        <label for="spacing">探索点の間隔</label><output id="spacingO"></output>
         <input type="range" id="spacing" min="8" max="48" step="1" value="20">
       </div>
       <div class="row">
-        <span class="lbl"><label for="minD">最小直径</label><button type="button" class="help" data-help="minD" aria-expanded="false" aria-label="最小直径の説明">?</button></span><output id="minDO"></output>
+        <label for="minD">最小直径</label><output id="minDO"></output>
         <input type="range" id="minD" min="2" max="40" step="1" value="6">
       </div>
       <div class="row">
-        <span class="lbl"><label for="maxD">最大直径</label><button type="button" class="help" data-help="maxD" aria-expanded="false" aria-label="最大直径の説明">?</button></span><output id="maxDO"></output>
+        <label for="maxD">最大直径</label><output id="maxDO"></output>
         <input type="range" id="maxD" min="10" max="150" step="1" value="60">
       </div>
       <div class="row">
-        <span class="lbl"><label for="iou">SAMの信頼度しきい値</label><button type="button" class="help" data-help="iou" aria-expanded="false" aria-label="SAMの信頼度しきい値の説明">?</button></span><output id="iouO"></output>
+        <label for="iou">SAMの信頼度しきい値</label><output id="iouO"></output>
         <input type="range" id="iou" min="0.5" max="0.99" step="0.01" value="0.80">
       </div>
-      <div class="check">
+      <label class="check">
         <input type="checkbox" id="cluster" checked>
-        <span class="lbl"><label for="cluster">大きな塊は中央値の面積で割って個数に換算する</label>
-        <button type="button" class="help" data-help="cluster" aria-expanded="false" aria-label="塊の換算の説明">?</button></span>
-      </div>
+        <span>大きな塊は中央値の面積で割って個数に換算する</span>
+      </label>
       <p class="note">長さの単位は、処理用に縮小した画像（長辺1024px以下）のピクセルです。</p>
     </div>
 
@@ -236,14 +180,6 @@
     </div>
   </aside>
 </main>
-
-<div class="mbar" role="region" aria-label="操作バー">
-  <div class="prog"><i id="mBar"></i></div>
-  <div class="cnt"><span>コロニー数</span><b id="mTotal">–</b></div>
-  <button class="primary" id="mRun" disabled>自動検出</button>
-</div>
-
-<div id="pop" role="dialog"></div>
 
 <script type="module">
 import { SamModel, AutoProcessor, RawImage, Tensor, env }
@@ -272,23 +208,21 @@ let renderQueued = false;
 
 /* ---------- UI helpers ---------- */
 const fmt = (v) => String(v);
-function setProg(w) { $("runBar").style.width = w; $("mBar").style.width = w; }
 function bindRange(id, suffix = "") {
   const el = $(id), out = $(id + "O");
   const upd = () => { out.textContent = el.value + suffix; };
   el.addEventListener("input", upd); upd();
 }
 bindRange("spacing", " px"); bindRange("minD", " px"); bindRange("maxD", " px"); bindRange("iou");
-if (matchMedia("(pointer:coarse)").matches) { $("spacing").value = 26; $("spacing").dispatchEvent(new Event("input")); }
 
 function setBusy(msg) { busy.style.display = msg ? "block" : "none"; busy.textContent = msg || ""; }
 function setRunStatus(msg, err = false) { const e = $("runStatus"); e.textContent = msg; e.className = err ? "err" : ""; }
 function setModelStatus(msg, cls = "") { const e = $("modelStatus"); e.textContent = msg; e.className = cls; }
 
 const hints = {
-  roi: "シャーレの中心からふちまで、指またはマウスでドラッグして範囲を指定",
-  add: "見落としたコロニーをタップ",
-  remove: "誤検出をタップして削除"
+  roi: "シャーレの中心からふちまでドラッグして範囲を指定",
+  add: "見落としたコロニーをクリック",
+  remove: "誤検出をクリックして削除"
 };
 function setMode(m) {
   mode = m;
@@ -312,50 +246,31 @@ function updateButtons() {
   $("stop").disabled = !running;
   $("dlCsv").disabled = colonies.size === 0;
   $("dlPng").disabled = !hasImg;
-  $("mRun").disabled = running ? false : !ready;
-  $("mRun").textContent = running ? "停止" : "自動検出";
 }
 
 /* ---------- Model ---------- */
-const isMobile = matchMedia("(pointer:coarse)").matches;
-try { env.backends.onnx.wasm.numThreads = 1; } catch {}
-let modelPromise = null;
-function ensureModel() { return (modelPromise ||= loadModel()); }
 async function loadModel() {
-  const cb = (d) => {
-    if (d.status === "progress" && d.file) {
-      const p = Math.round(d.progress || 0);
-      setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
-      $("modelBar").style.width = p + "%";
-    }
-  };
-  const load = async (opts) => {
-    const m = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb, ...opts });
-    const pr = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
-    return [m, pr];
-  };
   try {
+    const cb = (d) => {
+      if (d.status === "progress" && d.file) {
+        const p = Math.round(d.progress || 0);
+        setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
+        $("modelBar").style.width = p + "%";
+      }
+    };
     setModelStatus("モデルを取得中…（初回のみ時間がかかります）");
-    try {
-      // スマホでは量子化モデルでメモリを節約する
-      [model, processor] = await load(isMobile ? { dtype: "q8" } : {});
-    } catch (e) {
-      if (!isMobile) throw e;
-      console.warn("q8 load failed, falling back", e);
-      [model, processor] = await load({});
-    }
+    model = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb });
+    processor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
     $("modelBar").style.width = "100%";
     setModelStatus("モデル準備完了 (SlimSAM)", "ok");
+    if (base && !embeddings) await encodeImage();
+    updateButtons();
   } catch (e) {
     console.error(e);
-    modelPromise = null;
     setModelStatus("モデルを読み込めませんでした。ネットワークを確認してください。 " + (e.message || e), "err");
   }
-  updateButtons();
 }
-// スマホはカメラ起動中にタブが破棄されやすいので、写真を受け取るまでモデルを読み込まない
-if (isMobile) setModelStatus("写真を選ぶとモデルを読み込みます（メモリ節約のため）");
-else ensureModel();
+loadModel();
 
 async function encodeImage() {
   if (!model || !processor || !base) return;
@@ -406,22 +321,14 @@ async function loadImage(file) {
   roi = { cx: W / 2, cy: H / 2, r: m * 0.47 };
   setMode("roi");
   setRunStatus("");
-  setProg("0");
+  $("runBar").style.width = "0";
   updateButtons(); queueRender(); updateCount();
-  setBusy("モデルを準備中…");
-  await ensureModel();
-  setBusy("");
   if (model) await encodeImage();
+  else setRunStatus("モデルの読み込み完了後に画像を解析します。");
 }
-const camInput = $("cam");
 drop.addEventListener("click", () => fileInput.click());
-$("dCam").addEventListener("click", (e) => { e.stopPropagation(); camInput.click(); });
-$("dPick").addEventListener("click", (e) => { e.stopPropagation(); fileInput.click(); });
-$("camBtn").addEventListener("click", () => camInput.click());
-$("pickBtn").addEventListener("click", () => fileInput.click());
-camInput.addEventListener("change", () => { loadImage(camInput.files[0]); camInput.value = ""; });
 drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
-fileInput.addEventListener("change", () => { loadImage(fileInput.files[0]); fileInput.value = ""; });
+fileInput.addEventListener("change", () => loadImage(fileInput.files[0]));
 ["dragenter", "dragover"].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
 document.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadImage(f); });
@@ -433,18 +340,12 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- SAM segmentation of one point ---------- */
 async function segmentAt(x, y) {
-  const reshaper = typeof processor.reshape_input_points === "function"
-    ? processor
-    : (processor.image_processor || processor.components?.image_processor);
-  const pts = reshaper.reshape_input_points(
+  const pts = processor.image_processor.reshape_input_points(
     [[[x, y]]], imageInputs.original_sizes, imageInputs.reshaped_input_sizes
   );
   const labels = new Tensor("int64", new BigInt64Array([1n]), [1, 1, 1]);
   const out = await model({ ...embeddings, input_points: pts, input_labels: labels });
-  const poster = typeof processor.post_process_masks === "function"
-    ? processor
-    : (processor.image_processor || processor.components?.image_processor);
-  const masks = await poster.post_process_masks(
+  const masks = await processor.post_process_masks(
     out.pred_masks, imageInputs.original_sizes, imageInputs.reshaped_input_sizes
   );
   return { mask: masks[0], iou: Array.from(out.iou_scores.data) };
@@ -552,8 +453,6 @@ async function runAuto() {
   running = true; cancelFlag = false; updateButtons();
   const t0 = performance.now();
   let done = 0;
-  let wl = null;
-  try { wl = await navigator.wakeLock?.request("screen"); } catch {}
   try {
     for (const [x, y] of pts) {
       if (cancelFlag) break;
@@ -564,7 +463,7 @@ async function runAuto() {
         if (cand) addColony(cand);
       }
       if (done % 4 === 0) {
-        setProg((done / pts.length * 100).toFixed(1) + "%");
+        $("runBar").style.width = (done / pts.length * 100).toFixed(1) + "%";
         const el = (performance.now() - t0) / 1000;
         const eta = el / done * (pts.length - done);
         setRunStatus(`探索中 ${done} / ${pts.length} 点　残り約 ${Math.ceil(eta)} 秒`);
@@ -572,19 +471,17 @@ async function runAuto() {
         await new Promise((r) => setTimeout(r, 0));
       }
     }
-    setProg("100%");
+    $("runBar").style.width = "100%";
     setRunStatus(cancelFlag ? "停止しました。" : `完了 (${((performance.now() - t0) / 1000).toFixed(1)} 秒)。誤りは「追加」「削除」で直せます。`);
   } catch (e) {
     console.error(e);
     setRunStatus("検出中にエラー: " + (e.message || e), true);
   } finally {
-    try { wl?.release(); } catch {}
     running = false; updateButtons(); updateCount(); queueRender();
   }
 }
 $("run").onclick = runAuto;
 $("stop").onclick = () => { cancelFlag = true; };
-$("mRun").onclick = () => { running ? (cancelFlag = true) : runAuto(); };
 $("cluster").addEventListener("change", () => { updateCount(); queueRender(); });
 
 /* ---------- Counting ---------- */
@@ -603,8 +500,7 @@ function stats() {
 }
 function updateCount() {
   const s = stats();
-  const shown = s.n ? s.total : (base ? "0" : "–");
-  $("total").textContent = shown; $("mTotal").textContent = shown;
+  $("total").textContent = s.n ? s.total : (base ? "0" : "–");
   $("sub").textContent = s.n
     ? (s.extra > 0 ? `検出 ${s.n} 個 ＋ 塊の換算 ${s.extra} 個` : `検出 ${s.n} 個`)
     : "";
@@ -666,19 +562,16 @@ function toImg(e) {
   return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
 }
 let dragging = false;
-view.addEventListener("pointerdown", (e) => {
-  if (!base || mode !== "roi") return;
-  const [x, y] = toImg(e);
-  dragging = true; view.setPointerCapture(e.pointerId);
-  roi = { cx: x, cy: y, r: 1 }; queueRender();
-});
-view.addEventListener("click", async (e) => {
+view.addEventListener("pointerdown", async (e) => {
   if (!base) return;
   const [x, y] = toImg(e);
-  if (mode === "remove") {
+  if (mode === "roi") {
+    dragging = true; view.setPointerCapture(e.pointerId);
+    roi = { cx: x, cy: y, r: 1 }; queueRender();
+  } else if (mode === "remove") {
     let id = labelMap[Math.round(y) * W + Math.round(x)];
     if (!id) {
-      let bd = 20 * 20;
+      let bd = 15 * 15;
       for (const c of colonies.values()) {
         const d2 = (c.cx - x) ** 2 + (c.cy - y) ** 2;
         if (d2 < bd) { bd = d2; id = c.id; }
@@ -695,7 +588,7 @@ view.addEventListener("click", async (e) => {
       const res = await segmentAt(xi, yi);
       const cand = pickCandidate(res, xi, yi, P);
       if (cand && addColony(cand, 0.5)) { updateCount(); queueRender(); setRunStatus("コロニーを追加しました。"); }
-      else setRunStatus("その位置にコロニーを検出できませんでした。直径の設定を見直すか、中心付近をタップしてください。", true);
+      else setRunStatus("その位置にコロニーを検出できませんでした。直径の設定を見直すか、中心付近をクリックしてください。", true);
     } catch (err) { console.error(err); setRunStatus("エラー: " + (err.message || err), true); }
     finally { setBusy(""); }
   }
@@ -707,7 +600,6 @@ view.addEventListener("pointermove", (e) => {
   queueRender();
 });
 view.addEventListener("pointerup", () => { dragging = false; });
-view.addEventListener("pointercancel", () => { dragging = false; });
 
 /* ---------- Export ---------- */
 function download(name, blob) {
@@ -730,56 +622,6 @@ $("dlPng").onclick = () => {
   render();
   view.toBlob((b) => download("colonies_result.png", b), "image/png");
 };
-
-/* ---------- Help popovers ---------- */
-const HELP = {
-  spacing: ["探索点の間隔", [
-    "SAMに「ここに物体はありますか？」と尋ねる点を、格子状に並べる間隔です。",
-    "コロニーの直径より小さくすると、各コロニーに少なくとも1点が当たり、見落としが減ります。小さくするほど点の数が増え、処理は遅くなります。",
-    "<span class='tip'>目安：最小のコロニーの直径と同じか、やや小さい値。まず大きめで試し、見落としがあれば下げます。</span>"]],
-  minD: ["最小直径", [
-    "この直径（画像上のピクセル）より小さいマスクは、コロニーではなくノイズや傷として捨てます。",
-    "大きくしすぎると、小さなコロニーが消えます。",
-    "<span class='tip'>目安：最も小さいコロニーの直径の7〜8割。ゴミを拾う場合は上げます。</span>"]],
-  maxD: ["最大直径", [
-    "この直径より大きいマスクは、コロニーではないものとして捨てます。シャーレ全体、寒天の模様、フチの反射などを除外するための上限です。",
-    "小さくしすぎると、大きなコロニーや、くっついた塊が消えます。",
-    "<span class='tip'>目安：最大のコロニー（塊を含めて数えたいならその塊）の直径の1.2倍程度。</span>"]],
-  iou: ["SAMの信頼度しきい値", [
-    "SAMは点ごとに3つのマスク候補と、それぞれの「きれいに切り出せた度合い」（予測IoU）を返します。この値より低い候補は採用しません。",
-    "上げると誤検出が減りますが、輪郭が不鮮明なコロニーを取りこぼします。下げると拾いやすくなる代わりに、変な形のマスクが増えます。",
-    "<span class='tip'>目安：0.75〜0.90。コロニーが薄い・小さいときは下げます。</span>"]],
-  cluster: ["大きな塊の換算", [
-    "コロニーが重なって1つの大きなマスクになった場合に、個数を補正します。検出したマスクの面積の中央値を「コロニー1個分」とみなし、それより1.7倍を超えて大きいマスクは、面積 ÷ 中央値 を四捨五入した個数として数えます。",
-    "換算した塊には「×n」と表示されます。あくまで面積からの推定なので、重なりが多いときは目視で確認してください。",
-    "<span class='tip'>コロニーの大きさがもともと大きくばらつくプレートでは、オフにして検出数のまま数える方が正確です。検出が5個未満のときは換算しません。</span>"]]
-};
-const pop = $("pop");
-let popBtn = null;
-function closePop() {
-  pop.style.display = "none";
-  if (popBtn) { popBtn.setAttribute("aria-expanded", "false"); popBtn = null; }
-}
-function openPop(btn) {
-  const h = HELP[btn.dataset.help]; if (!h) return;
-  closePop();
-  popBtn = btn; btn.setAttribute("aria-expanded", "true");
-  pop.innerHTML = `<b>${h[0]}</b>` + h[1].map((t) => `<p>${t}</p>`).join("");
-  pop.style.display = "block";
-  const r = btn.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
-  let left = Math.min(Math.max(8, r.left - 12), window.innerWidth - pw - 8);
-  let top = r.bottom + 8;
-  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 8);
-  pop.style.left = left + "px"; pop.style.top = top + "px";
-}
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".help");
-  if (btn) { e.preventDefault(); popBtn === btn ? closePop() : openPop(btn); return; }
-  if (!pop.contains(e.target)) closePop();
-});
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const b = popBtn; closePop(); if (b) b.focus(); } });
-window.addEventListener("scroll", closePop, true);
-window.addEventListener("resize", closePop);
 
 setMode("roi");
 updateButtons();
