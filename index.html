@@ -317,28 +317,45 @@ function updateButtons() {
 }
 
 /* ---------- Model ---------- */
+const isMobile = matchMedia("(pointer:coarse)").matches;
+try { env.backends.onnx.wasm.numThreads = 1; } catch {}
+let modelPromise = null;
+function ensureModel() { return (modelPromise ||= loadModel()); }
 async function loadModel() {
+  const cb = (d) => {
+    if (d.status === "progress" && d.file) {
+      const p = Math.round(d.progress || 0);
+      setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
+      $("modelBar").style.width = p + "%";
+    }
+  };
+  const load = async (opts) => {
+    const m = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb, ...opts });
+    const pr = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
+    return [m, pr];
+  };
   try {
-    const cb = (d) => {
-      if (d.status === "progress" && d.file) {
-        const p = Math.round(d.progress || 0);
-        setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
-        $("modelBar").style.width = p + "%";
-      }
-    };
     setModelStatus("モデルを取得中…（初回のみ時間がかかります）");
-    model = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb });
-    processor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
+    try {
+      // スマホでは量子化モデルでメモリを節約する
+      [model, processor] = await load(isMobile ? { dtype: "q8" } : {});
+    } catch (e) {
+      if (!isMobile) throw e;
+      console.warn("q8 load failed, falling back", e);
+      [model, processor] = await load({});
+    }
     $("modelBar").style.width = "100%";
     setModelStatus("モデル準備完了 (SlimSAM)", "ok");
-    if (base && !embeddings) await encodeImage();
-    updateButtons();
   } catch (e) {
     console.error(e);
+    modelPromise = null;
     setModelStatus("モデルを読み込めませんでした。ネットワークを確認してください。 " + (e.message || e), "err");
   }
+  updateButtons();
 }
-loadModel();
+// スマホはカメラ起動中にタブが破棄されやすいので、写真を受け取るまでモデルを読み込まない
+if (isMobile) setModelStatus("写真を選ぶとモデルを読み込みます（メモリ節約のため）");
+else ensureModel();
 
 async function encodeImage() {
   if (!model || !processor || !base) return;
@@ -391,8 +408,10 @@ async function loadImage(file) {
   setRunStatus("");
   setProg("0");
   updateButtons(); queueRender(); updateCount();
+  setBusy("モデルを準備中…");
+  await ensureModel();
+  setBusy("");
   if (model) await encodeImage();
-  else setRunStatus("モデルの読み込み完了後に画像を解析します。");
 }
 const camInput = $("cam");
 drop.addEventListener("click", () => fileInput.click());
