@@ -211,6 +211,14 @@
         <button type="button" class="help" data-help="engine" aria-expanded="false" aria-label="検出方式の説明">?</button>
       </div>
       <div class="row sam-only">
+        <span class="lbl"><label for="samModel">SAMモデル</label>
+        <button type="button" class="help" data-help="samModel" aria-expanded="false" aria-label="SAMモデルの説明">?</button></span>
+        <select id="samModel">
+          <option value="slim">SlimSAM（軽い）</option>
+          <option value="sam3">SAM 3 Tracker（重い）</option>
+        </select>
+      </div>
+      <div class="row sam-only">
         <span class="lbl"><label for="spacing">探索点の間隔</label><button type="button" class="help" data-help="spacing" aria-expanded="false" aria-label="探索点の間隔の説明">?</button></span><output id="spacingO"></output>
         <input type="range" id="spacing" min="8" max="48" step="1" value="20">
       </div>
@@ -277,16 +285,22 @@
 
 <script type="module">
 // SAM用ライブラリは、SAM方式を選んだときだけ読み込む（軽量方式は外部通信なしで動く）
-const TF_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2";
-let SamModel, AutoProcessor, RawImage, Tensor, env;
-async function loadLib() {
-  if (env) return;
-  const m = await import(TF_URL);
-  ({ SamModel, AutoProcessor, RawImage, Tensor, env } = m);
+const MODELS = {
+  slim: { label: "SlimSAM", id: "Xenova/slimsam-77-uniform", cls: "SamModel",
+          lib: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2" },
+  sam3: { label: "SAM 3 Tracker", id: "onnx-community/sam3-tracker-ONNX", cls: "Sam3TrackerModel",
+          lib: "https://cdn.jsdelivr.net/npm/@huggingface/transformers" }
+};
+let samKey = "slim";
+let tfMod = null, libUrl = null;
+let AutoProcessor, RawImage, Tensor, env;
+async function loadLib(url) {
+  if (libUrl === url) return;
+  const m = await import(url);
+  tfMod = m; ({ AutoProcessor, RawImage, Tensor, env } = m); libUrl = url;
   env.allowLocalModels = false;
   try { env.backends.onnx.wasm.numThreads = 1; } catch {}
 }
-const MODEL_ID = "Xenova/slimsam-77-uniform";
 const MAX_SIDE = 1024;
 
 const $ = (id) => document.getElementById(id);
@@ -365,25 +379,31 @@ async function loadModel() {
       $("modelBar").style.width = p + "%";
     }
   };
+  const spec = MODELS[samKey];
   const load = async (opts) => {
-    const m = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb, ...opts });
-    const pr = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
+    const Cls = tfMod[spec.cls];
+    if (!Cls) throw new Error(`このバージョンのtransformers.jsには ${spec.cls} がありません`);
+    const m = await Cls.from_pretrained(spec.id, { progress_callback: cb, ...opts });
+    const pr = await AutoProcessor.from_pretrained(spec.id, { progress_callback: cb });
     return [m, pr];
   };
   try {
     setModelStatus("ライブラリを取得中…");
-    await loadLib();
-    setModelStatus("モデルを取得中…（初回のみ時間がかかります）");
+    await loadLib(spec.lib);
+    setModelStatus(`${spec.label} を取得中…（初回のみ時間がかかります）`);
+    // スマホのSlimSAMは量子化でメモリ節約 / SAM 3 はWebGPUが使えれば使う
+    const first = samKey === "slim" ? (isMobile ? { dtype: "q8" } : {})
+                                     : (navigator.gpu ? { device: "webgpu" } : {});
     try {
-      // スマホでは量子化モデルでメモリを節約する
-      [model, processor] = await load(isMobile ? { dtype: "q8" } : {});
+      [model, processor] = await load(first);
     } catch (e) {
-      if (!isMobile) throw e;
-      console.warn("q8 load failed, falling back", e);
+      if (!Object.keys(first).length) throw e;
+      console.warn("load with options failed, falling back", e);
+      setModelStatus("別の設定でモデルを取得し直しています…");
       [model, processor] = await load({});
     }
     $("modelBar").style.width = "100%";
-    setModelStatus("モデル準備完了 (SlimSAM)", "ok");
+    setModelStatus(`モデル準備完了 (${spec.label})`, "ok");
   } catch (e) {
     console.error(e);
     modelPromise = null;
@@ -507,12 +527,12 @@ function params() {
 function pickCandidate(res, x, y, P) {
   const data = res.mask.data;
   const dims = res.mask.dims;          // [1, 3, H, W]
-  const K = dims[1], mh = dims[2], mw = dims[3];
+  const K = dims[dims.length - 3], mh = dims[dims.length - 2], mw = dims[dims.length - 1];
   const x0 = Math.max(0, x - P.R), x1 = Math.min(mw - 1, x + P.R);
   const y0 = Math.max(0, y - P.R), y1 = Math.min(mh - 1, y + P.R);
   let best = null;
   for (let k = 0; k < K; k++) {
-    if (res.iou[k] < P.iouThr) continue;
+    if ((res.iou[k] ?? 0) < P.iouThr) continue;
     const off = k * mh * mw;
     const pixels = [];
     let minx = 1e9, maxx = -1, miny = 1e9, maxy = -1, sx = 0, sy = 0, touches = false;
@@ -985,6 +1005,10 @@ $("dlPng").onclick = () => {
 
 /* ---------- Help popovers ---------- */
 const HELP = {
+  samModel: ["SAMモデル", [
+    "<b style='display:inline'>SlimSAM</b>：軽く、PCなら数十秒〜数分で解析できます。標準です。",
+    "<b style='display:inline'>SAM 3 Tracker</b>：新しく大きなモデルです。ダウンロードが大きく（数百MB〜GB単位の可能性）、メモリも多く使います。PCのChrome / Edgeで、WebGPUが使えると現実的です。最新版のtransformers.jsを読み込むため、動作は実験的です。",
+    "<span class='tip'>切り替えると、モデルを読み込み直して画像を再解析します。</span>"]],
   engine: ["検出方式", [
     "<b style='display:inline'>軽量（SAMなし）</b>：背景との明暗の差でコロニーを見つけ、くっついたものは形から分けます。メモリをほとんど使わないので、スマホ向きです。モデルの読み込みもありません。",
     "<b style='display:inline'>SAM（高精度）</b>：AIモデルで1個ずつ輪郭を切り出します。淡いコロニーや複雑な背景に強い反面、モデルの読み込みに数十MB以上と大量のメモリが必要です。PC向きで、スマホでは強制終了することがあります。",
@@ -1046,6 +1070,20 @@ window.addEventListener("scroll", closePop, true);
 window.addEventListener("resize", closePop);
 
 document.body.dataset.engine = engine;
+$("samModel").addEventListener("change", async () => {
+  samKey = $("samModel").value;
+  cancelFlag = true;
+  try { await model?.dispose?.(); } catch {}
+  model = null; processor = null; embeddings = null; imageInputs = null; modelPromise = null;
+  $("modelBar").style.width = "0";
+  closePop(); updateButtons();
+  if (engine === "sam") {
+    setBusy("モデルを準備中…");
+    await ensureModel();
+    setBusy("");
+    if (model && base) await encodeImage();
+  }
+});
 document.querySelectorAll('input[name="engine"]').forEach((r) => {
   r.checked = r.value === engine;
   r.addEventListener("change", async () => {
