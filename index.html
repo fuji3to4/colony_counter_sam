@@ -3,184 +3,44 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>大腸菌コロニーカウンタ (SlimSAM)</title>
-<style>
-  :root{
-    --bg:#e4eae8;
-    --panel:#f7f9f8;
-    --ink:#14262b;
-    --muted:#5a6d71;
-    --line:#c3cfce;
-    --accent:#0f6e6e;
-    --accent-ink:#ffffff;
-    --warn:#a3480f;
-    --stage:#0e1a1d;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0}
-  body{
-    background:var(--bg);color:var(--ink);
-    font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Yu Gothic",system-ui,sans-serif;
-    line-height:1.6;
-  }
-  header{padding:20px 28px 4px}
-  h1{margin:0;font-size:20px;font-weight:700;letter-spacing:.02em}
-  header p{margin:2px 0 0;color:var(--muted);font-size:13px}
-  main{
-    display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;
-    padding:16px 28px 32px;align-items:start;
-  }
-  @media (max-width:900px){ main{grid-template-columns:1fr;padding:12px 14px 28px} header{padding:16px 14px 0} }
-
-  .stage-wrap{background:var(--stage);border-radius:10px;overflow:hidden;position:relative;min-height:320px}
-  .toolbar{
-    display:flex;gap:6px;flex-wrap:wrap;padding:10px;background:#16272b;border-bottom:1px solid #223a3f;
-  }
-  .toolbar button{
-    background:transparent;color:#cfe0e0;border:1px solid #33555a;border-radius:6px;
-    padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;
-  }
-  .toolbar button[aria-pressed="true"]{background:#d9f0ec;color:#0c2a2a;border-color:#d9f0ec}
-  .toolbar button:disabled{opacity:.4;cursor:not-allowed}
-  .toolbar .spacer{flex:1}
-  .toolbar .hint{color:#8fb0b0;font-size:12px;align-self:center;flex-basis:100%;order:10}
-  .toolbar button.src{border-color:#7fc4bd;color:#d9f0ec}
-  #drop .dbtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-  #drop .dbtns button{
-    font:inherit;font-size:15px;border-radius:8px;padding:12px 18px;cursor:pointer;
-    border:1px solid #7fc4bd;background:transparent;color:#e5f3f1;
-  }
-  #drop .dbtns button.cam{background:#d9f0ec;color:#0c2a2a;border-color:#d9f0ec;font-weight:700}
-  body[data-engine="light"] .sam-only{display:none}
-  body[data-engine="sam"] .light-only{display:none}
-  .engine{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
-  .engine label{position:relative;display:block}
-  .engine input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-  .engine span.pill{
-    display:block;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;background:#fff;
-  }
-  .engine input:checked + span.pill{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-  .engine input:focus-visible + span.pill{outline:3px solid #f0b429;outline-offset:2px}
-  select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
-  .mbar{display:none}
-  @media (max-width:900px){
-    body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
-    .mbar{
-      display:flex;align-items:center;gap:14px;position:fixed;left:0;right:0;bottom:0;z-index:40;
-      background:var(--panel);border-top:1px solid var(--line);
-      padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
-      box-shadow:0 -4px 16px rgba(0,0,0,.12);
-    }
-    .mbar .cnt{flex:1;display:flex;align-items:baseline;gap:8px}
-    .mbar .cnt span{font-size:12px;color:var(--muted)}
-    .mbar .cnt b{font-size:38px;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
-    .mbar button{flex:none;min-width:130px}
-    .mbar .prog{position:absolute;left:0;right:0;top:-1px;height:3px}
-    .mbar .prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
-    .count .num{font-size:64px}
-    #drop{inset:10px;padding:14px}
-  }
-  @media (pointer:coarse){
-    .toolbar button{padding:10px 14px;font-size:14px}
-    button.primary,button.secondary{padding:12px 16px}
-    .help{width:28px;height:28px;font-size:14px}
-    .row input[type=range]{height:32px}
-    .check input{width:20px;height:20px}
-  }
-  #canvasBox{position:relative;display:flex;justify-content:center;align-items:center;min-height:280px}
-  canvas#view{display:block;max-width:100%;height:auto;touch-action:manipulation;-webkit-touch-callout:none;user-select:none}
-  canvas#view.roi{cursor:crosshair;touch-action:none} canvas#view.add{cursor:copy} canvas#view.remove{cursor:not-allowed}
-  #drop{
-    position:absolute;inset:14px;border:2px dashed #3d6468;border-radius:8px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-    color:#a9c6c6;text-align:center;cursor:pointer;padding:20px;
-  }
-  #drop.over{border-color:#d9f0ec;color:#fff}
-  #drop strong{font-size:16px;font-weight:600}
-  #drop span{font-size:13px}
-  #busy{
-    position:absolute;left:12px;bottom:12px;background:rgba(10,24,26,.85);color:#e5f3f1;
-    padding:6px 12px;border-radius:6px;font-size:13px;display:none;
-  }
-
-  aside{display:flex;flex-direction:column;gap:14px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
-  .count{padding:18px 18px 14px}
-  .count .label{font-size:13px;color:var(--muted)}
-  .count .num{
-    font-size:84px;font-weight:700;line-height:1.05;letter-spacing:-.02em;
-    font-variant-numeric:tabular-nums;color:var(--accent);
-  }
-  .count .sub{font-size:13px;color:var(--muted);min-height:1.6em}
-
-  h2{margin:0 0 10px;font-size:14px;font-weight:700}
-  .row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin-bottom:10px}
-  .row label{font-size:13px}
-  .row output{font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted);min-width:4.5em;text-align:right}
-  .row input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--accent)}
-  .check{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:4px 0 0}
-  .check input{margin-top:4px;accent-color:var(--accent)}
-  .note{font-size:12px;color:var(--muted);margin:2px 0 0}
-
-  .btns{display:flex;gap:8px;flex-wrap:wrap}
-  button.primary,button.secondary{
-    font:inherit;font-size:14px;border-radius:7px;padding:9px 14px;cursor:pointer;border:1px solid var(--accent);
-  }
-  button.primary{background:var(--accent);color:var(--accent-ink);flex:1}
-  button.secondary{background:transparent;color:var(--accent)}
-  button:disabled{opacity:.45;cursor:not-allowed}
-  button:focus-visible,input:focus-visible,#drop:focus-visible{outline:3px solid #f0b429;outline-offset:2px}
-
-  .bar{height:6px;background:#dbe4e3;border-radius:3px;overflow:hidden;margin-top:8px}
-  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
-  #modelStatus,#runStatus{font-size:13px;color:var(--muted)}
-  #modelStatus.ok{color:var(--accent)}
-  #modelStatus.err,#runStatus.err{color:var(--warn)}
-
-  .lbl{display:inline-flex;align-items:center;gap:6px}
-  .help{
-    width:20px;height:20px;padding:0;border-radius:50%;border:1px solid var(--accent);
-    background:transparent;color:var(--accent);font:inherit;font-size:12px;font-weight:700;
-    line-height:1;cursor:pointer;flex:none;
-  }
-  .help[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink)}
-  #pop{
-    position:fixed;z-index:50;max-width:310px;background:#14262b;color:#eaf4f3;
-    border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.65;
-    box-shadow:0 8px 24px rgba(0,0,0,.28);display:none;
-  }
-  #pop b{display:block;margin-bottom:4px;font-size:13px}
-  #pop p{margin:0 0 6px} #pop p:last-child{margin:0}
-  #pop .tip{color:#9fd3cd}
-</style>
+<title data-i18n="app.title">大腸菌コロニーカウンタ</title>
+<link rel="stylesheet" href="./css/app.css">
 </head>
 <body>
 <header>
-  <h1>大腸菌コロニーカウンタ</h1>
-  <p>軽量な画像処理と SlimSAM の2つの方式を選べます。どちらもブラウザ内で動き、画像は外部に送信されません。</p>
+  <div class="header-top">
+    <h1 data-i18n="app.title">大腸菌コロニーカウンタ</h1>
+    <label class="language"><span class="sr-only" data-i18n="language.label">表示言語</span>
+      <select id="language" aria-label="表示言語" data-i18n-aria-label="language.label">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+  </div>
+  <p data-i18n="header.description">軽量な画像処理と SlimSAM の2つの方式を選べます。どちらもブラウザ内で動き、画像は外部に送信されません。</p>
 </header>
 
 <main>
   <section>
     <div class="stage-wrap">
-      <div class="toolbar" role="toolbar" aria-label="編集モード">
-        <button id="mRoi" aria-pressed="true" disabled>シャーレ範囲</button>
-        <button id="mAdd" aria-pressed="false" disabled>コロニーを追加</button>
-        <button id="mDel" aria-pressed="false" disabled>コロニーを削除</button>
-        <button id="clearRoi" disabled>範囲を解除</button>
+      <div class="toolbar" role="toolbar" aria-label="編集モード" data-i18n-aria-label="toolbar.aria">
+        <button id="mRoi" aria-pressed="true" disabled data-i18n="mode.roi">シャーレ範囲</button>
+        <button id="mAdd" aria-pressed="false" disabled data-i18n="mode.add">コロニーを追加</button>
+        <button id="mDel" aria-pressed="false" disabled data-i18n="mode.remove">コロニーを削除</button>
+        <button id="clearRoi" disabled data-i18n="mode.clearRoi">範囲を解除</button>
         <span class="spacer"></span>
-        <button class="src" id="camBtn">撮影</button>
-        <button class="src" id="pickBtn">写真を選択</button>
+        <button class="src" id="camBtn" data-i18n="source.camera">撮影</button>
+        <button class="src" id="pickBtn" data-i18n="source.pick">写真を選択</button>
         <span class="hint" id="modeHint"></span>
       </div>
       <div id="canvasBox">
         <canvas id="view" width="10" height="10" hidden></canvas>
-        <div id="drop" tabindex="0" role="button" aria-label="画像を選択">
-          <strong>シャーレの写真を用意してください</strong>
-          <span>真上から、影や反射を避けて撮るとうまくいきます。PCでは画像のドロップも使えます。</span>
+        <div id="drop" tabindex="0" role="button" aria-label="画像を選択" data-i18n-aria-label="drop.aria">
+          <strong data-i18n="drop.title">シャーレの写真を用意してください</strong>
+          <span data-i18n="drop.description">真上から、影や反射を避けて撮るとうまくいきます。PCでは画像のドロップも使えます。</span>
           <div class="dbtns">
-            <button type="button" class="cam" id="dCam">カメラで撮影</button>
-            <button type="button" id="dPick">写真を選択</button>
+            <button type="button" class="cam" id="dCam" data-i18n="drop.camera">カメラで撮影</button>
+            <button type="button" id="dPick" data-i18n="source.pick">写真を選択</button>
           </div>
         </div>
         <div id="busy" role="status"></div>
@@ -192,990 +52,98 @@
 
   <aside>
     <div class="card count" aria-live="polite">
-      <div class="label">コロニー数</div>
+      <div class="label" data-i18n="count.label">コロニー数</div>
       <div class="num" id="total">–</div>
       <div class="sub" id="sub"></div>
     </div>
 
     <div class="card sam-only">
-      <h2>モデル</h2>
-      <div id="modelStatus">読み込み待ち…</div>
+      <h2 data-i18n="model.heading">モデル</h2>
+      <div id="modelStatus" data-i18n="model.waiting">読み込み待ち…</div>
       <div class="bar"><i id="modelBar"></i></div>
     </div>
 
     <div class="card">
-      <h2>検出設定</h2>
-      <div class="engine" role="radiogroup" aria-label="検出方式">
-        <label><input type="radio" name="engine" value="light"><span class="pill">軽量（SAMなし）</span></label>
-        <label><input type="radio" name="engine" value="sam"><span class="pill">SAM（高精度）</span></label>
-        <button type="button" class="help" data-help="engine" aria-expanded="false" aria-label="検出方式の説明">?</button>
+      <h2 data-i18n="settings.heading">検出設定</h2>
+      <div class="engine" role="radiogroup" aria-label="検出方式" data-i18n-aria-label="engine.aria">
+        <label><input type="radio" name="engine" value="light"><span class="pill" data-i18n="engine.light">軽量（SAMなし）</span></label>
+        <label><input type="radio" name="engine" value="sam"><span class="pill" data-i18n="engine.sam">SAM（高精度）</span></label>
+        <button type="button" class="help" data-help="engine" aria-expanded="false" aria-label="検出方式の説明" data-i18n-aria-label="engine.help">?</button>
       </div>
       <div class="row sam-only">
-        <span class="lbl"><label for="samModel">SAMモデル</label>
-        <button type="button" class="help" data-help="samModel" aria-expanded="false" aria-label="SAMモデルの説明">?</button></span>
+        <span class="lbl"><label for="samModel" data-i18n="samModel.label">SAMモデル</label>
+        <button type="button" class="help" data-help="samModel" aria-expanded="false" aria-label="SAMモデルの説明" data-i18n-aria-label="samModel.help">?</button></span>
         <select id="samModel">
-          <option value="slim">SlimSAM（軽い）</option>
-          <option value="sam3">SAM 3 Tracker（重い）</option>
+          <option value="slim" data-i18n="samModel.slim">SlimSAM（軽い）</option>
+          <option value="sam3" data-i18n="samModel.sam3">SAM 3 Tracker（重い）</option>
         </select>
       </div>
       <div class="row sam-only">
-        <span class="lbl"><label for="spacing">探索点の間隔</label><button type="button" class="help" data-help="spacing" aria-expanded="false" aria-label="探索点の間隔の説明">?</button></span><output id="spacingO"></output>
+        <span class="lbl"><label for="spacing" data-i18n="spacing.label">探索点の間隔</label><button type="button" class="help" data-help="spacing" aria-expanded="false" aria-label="探索点の間隔の説明" data-i18n-aria-label="spacing.help">?</button></span><output id="spacingO"></output>
         <input type="range" id="spacing" min="8" max="48" step="1" value="20">
       </div>
       <div class="row">
-        <span class="lbl"><label for="minD">最小直径</label><button type="button" class="help" data-help="minD" aria-expanded="false" aria-label="最小直径の説明">?</button></span><output id="minDO"></output>
+        <span class="lbl"><label for="minD" data-i18n="minD.label">最小直径</label><button type="button" class="help" data-help="minD" aria-expanded="false" aria-label="最小直径の説明" data-i18n-aria-label="minD.help">?</button></span><output id="minDO"></output>
         <input type="range" id="minD" min="2" max="40" step="1" value="6">
       </div>
       <div class="row">
-        <span class="lbl"><label for="maxD">最大直径</label><button type="button" class="help" data-help="maxD" aria-expanded="false" aria-label="最大直径の説明">?</button></span><output id="maxDO"></output>
+        <span class="lbl"><label for="maxD" data-i18n="maxD.label">最大直径</label><button type="button" class="help" data-help="maxD" aria-expanded="false" aria-label="最大直径の説明" data-i18n-aria-label="maxD.help">?</button></span><output id="maxDO"></output>
         <input type="range" id="maxD" min="10" max="150" step="1" value="60">
       </div>
       <div class="row sam-only">
-        <span class="lbl"><label for="iou">SAMの信頼度しきい値</label><button type="button" class="help" data-help="iou" aria-expanded="false" aria-label="SAMの信頼度しきい値の説明">?</button></span><output id="iouO"></output>
+        <span class="lbl"><label for="iou" data-i18n="iou.label">SAMの信頼度しきい値</label><button type="button" class="help" data-help="iou" aria-expanded="false" aria-label="SAMの信頼度しきい値の説明" data-i18n-aria-label="iou.help">?</button></span><output id="iouO"></output>
         <input type="range" id="iou" min="0.5" max="0.99" step="0.01" value="0.80">
       </div>
       <div class="row light-only">
-        <span class="lbl"><label for="polar">コロニーの色</label>
-        <button type="button" class="help" data-help="polar" aria-expanded="false" aria-label="コロニーの色の説明">?</button></span>
+        <span class="lbl"><label for="polar" data-i18n="polar.label">コロニーの色</label>
+        <button type="button" class="help" data-help="polar" aria-expanded="false" aria-label="コロニーの色の説明" data-i18n-aria-label="polar.help">?</button></span>
         <select id="polar">
-          <option value="auto">自動</option>
-          <option value="bright">背景より明るい</option>
-          <option value="dark">背景より暗い</option>
+          <option value="auto" data-i18n="polar.auto">自動</option>
+          <option value="bright" data-i18n="polar.bright">背景より明るい</option>
+          <option value="dark" data-i18n="polar.dark">背景より暗い</option>
         </select>
       </div>
       <div class="row light-only">
-        <span class="lbl"><label for="sens">検出感度</label>
-        <button type="button" class="help" data-help="sens" aria-expanded="false" aria-label="検出感度の説明">?</button></span><output id="sensO"></output>
+        <span class="lbl"><label for="sens" data-i18n="sens.label">検出感度</label>
+        <button type="button" class="help" data-help="sens" aria-expanded="false" aria-label="検出感度の説明" data-i18n-aria-label="sens.help">?</button></span><output id="sensO"></output>
         <input type="range" id="sens" min="0.5" max="2" step="0.05" value="1">
       </div>
       <div class="check">
         <input type="checkbox" id="cluster" checked>
-        <span class="lbl"><label for="cluster">大きな塊は中央値の面積で割って個数に換算する</label>
-        <button type="button" class="help" data-help="cluster" aria-expanded="false" aria-label="塊の換算の説明">?</button></span>
+        <span class="lbl"><label for="cluster" data-i18n="cluster.label">大きな塊は中央値の面積で割って個数に換算する</label>
+        <button type="button" class="help" data-help="cluster" aria-expanded="false" aria-label="塊の換算の説明" data-i18n-aria-label="cluster.help">?</button></span>
       </div>
-      <p class="note">長さの単位は、処理用に縮小した画像（長辺1024px以下）のピクセルです。</p>
+      <p class="note" data-i18n="note.pixels">長さの単位は、処理用に縮小した画像（長辺1024px以下）のピクセルです。</p>
     </div>
 
     <div class="card">
       <div class="btns">
-        <button class="primary" id="run" disabled>自動検出</button>
-        <button class="secondary" id="stop" disabled>停止</button>
+        <button class="primary" id="run" disabled data-i18n="action.run">自動検出</button>
+        <button class="secondary" id="stop" disabled data-i18n="action.stop">停止</button>
       </div>
       <div class="bar"><i id="runBar"></i></div>
       <div id="runStatus" role="status"></div>
     </div>
 
     <div class="card">
-      <h2>保存</h2>
+      <h2 data-i18n="action.save">保存</h2>
       <div class="btns">
-        <button class="secondary" id="dlCsv" disabled>コロニー一覧 (CSV)</button>
-        <button class="secondary" id="dlLog" disabled>実験記録 (CSV)</button>
-        <button class="secondary" id="dlPng" disabled>結果画像 (PNG)</button>
+        <button class="secondary" id="dlCsv" disabled data-i18n="action.downloadColonies">コロニー一覧 (CSV)</button>
+        <button class="secondary" id="dlLog" disabled data-i18n="action.downloadRecord">実験記録 (CSV)</button>
+        <button class="secondary" id="dlPng" disabled data-i18n="action.downloadImage">結果画像 (PNG)</button>
       </div>
     </div>
   </aside>
 </main>
 
-<div class="mbar" role="region" aria-label="操作バー">
+<div class="mbar" role="region" aria-label="操作バー" data-i18n-aria-label="mobile.toolbar">
   <div class="prog"><i id="mBar"></i></div>
-  <div class="cnt"><span>コロニー数</span><b id="mTotal">–</b></div>
-  <button class="primary" id="mRun" disabled>自動検出</button>
+  <div class="cnt"><span data-i18n="count.label">コロニー数</span><b id="mTotal">–</b></div>
+  <button class="primary" id="mRun" disabled data-i18n="action.run">自動検出</button>
 </div>
 
 <div id="pop" role="dialog"></div>
 
-<script type="module">
-// SAM用ライブラリは、SAM方式を選んだときだけ読み込む（軽量方式は外部通信なしで動く）
-const MODELS = {
-  slim: { label: "SlimSAM", id: "Xenova/slimsam-77-uniform", cls: "SamModel",
-          lib: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2" },
-  sam3: { label: "SAM 3 Tracker", id: "onnx-community/sam3-tracker-ONNX", cls: "Sam3TrackerModel",
-          lib: "https://cdn.jsdelivr.net/npm/@huggingface/transformers" }
-};
-let samKey = "slim";
-let tfMod = null, libUrl = null;
-let AutoProcessor, RawImage, Tensor, env;
-async function loadLib(url) {
-  if (libUrl === url) return;
-  const m = await import(url);
-  tfMod = m; ({ AutoProcessor, RawImage, Tensor, env } = m); libUrl = url;
-  env.allowLocalModels = false;
-  try { env.backends.onnx.wasm.numThreads = 1; } catch {}
-}
-const MAX_SIDE = 1024;
-
-const $ = (id) => document.getElementById(id);
-const view = $("view"), ctx = view.getContext("2d");
-const drop = $("drop"), fileInput = $("file"), busy = $("busy");
-
-let model = null, processor = null;
-let W = 0, H = 0;
-let base = null;                       // 元画像 (offscreen canvas)
-let ovCanvas = null, ovCtx = null, ovImg = null;
-let imageInputs = null, embeddings = null;
-let labelMap = null;                   // 各画素の colony id (0 = なし)
-const colonies = new Map();            // id -> {id,pixels,area,cx,cy,color,mult}
-let nextId = 1;
-let roi = null;                        // {cx,cy,r}
-let mode = "roi";
-let running = false, cancelFlag = false;
-let renderQueued = false;
-const newRec = () => ({ autoObjs: 0, autoTotal: 0, removedAuto: 0, thr: null, pol: null, ranAt: null, engine: null, samLabel: null });
-let rec = newRec();
-let imgInfo = { name: "", ow: 0, oh: 0 };
-function resetRec() { rec = newRec(); }
-function finishRec() {
-  rec.autoObjs = colonies.size; rec.autoTotal = stats().total;
-  rec.ranAt = nowStr(); rec.engine = engine; rec.samLabel = MODELS[samKey].label;
-}
-const nowStr = () => new Date().toLocaleString("sv-SE");
-let engine = "light";
-
-/* ---------- UI helpers ---------- */
-const fmt = (v) => String(v);
-function setProg(w) { $("runBar").style.width = w; $("mBar").style.width = w; }
-function bindRange(id, suffix = "") {
-  const el = $(id), out = $(id + "O");
-  const upd = () => { out.textContent = el.value + suffix; };
-  el.addEventListener("input", upd); upd();
-}
-bindRange("spacing", " px"); bindRange("minD", " px"); bindRange("maxD", " px"); bindRange("iou"); bindRange("sens", " ×");
-if (matchMedia("(pointer:coarse)").matches) { $("spacing").value = 26; $("spacing").dispatchEvent(new Event("input")); }
-
-function setBusy(msg) { busy.style.display = msg ? "block" : "none"; busy.textContent = msg || ""; }
-function setRunStatus(msg, err = false) { const e = $("runStatus"); e.textContent = msg; e.className = err ? "err" : ""; }
-function setModelStatus(msg, cls = "") { const e = $("modelStatus"); e.textContent = msg; e.className = cls; }
-
-const hints = {
-  roi: "シャーレの中心からふちまで、指またはマウスでドラッグして範囲を指定",
-  add: "見落としたコロニーをタップ",
-  remove: "誤検出をタップして削除"
-};
-function setMode(m) {
-  mode = m;
-  $("mRoi").setAttribute("aria-pressed", m === "roi");
-  $("mAdd").setAttribute("aria-pressed", m === "add");
-  $("mDel").setAttribute("aria-pressed", m === "remove");
-  view.className = m;
-  $("modeHint").textContent = hints[m];
-}
-$("mRoi").onclick = () => setMode("roi");
-$("mAdd").onclick = () => setMode("add");
-$("mDel").onclick = () => setMode("remove");
-$("clearRoi").onclick = () => { roi = null; queueRender(); };
-
-function updateButtons() {
-  const hasImg = !!base;
-  const ready = hasImg && (engine === "light" || (!!embeddings && !!model));
-  ["mRoi", "mAdd", "mDel", "clearRoi"].forEach((id) => { $(id).disabled = !hasImg; });
-  $("mAdd").disabled = !ready || running;
-  $("run").disabled = !ready || running;
-  $("stop").disabled = !running;
-  $("dlCsv").disabled = colonies.size === 0;
-  $("dlPng").disabled = !hasImg;
-  $("dlLog").disabled = !hasImg;
-  $("mRun").disabled = running ? false : !ready;
-  $("mRun").textContent = running ? "停止" : "自動検出";
-}
-
-/* ---------- Model ---------- */
-const isMobile = matchMedia("(pointer:coarse)").matches;
-let modelPromise = null;
-function ensureModel() { return (modelPromise ||= loadModel()); }
-async function loadModel() {
-  const cb = (d) => {
-    if (d.status === "progress" && d.file) {
-      const p = Math.round(d.progress || 0);
-      setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
-      $("modelBar").style.width = p + "%";
-    }
-  };
-  const spec = MODELS[samKey];
-  const load = async (opts) => {
-    const Cls = tfMod[spec.cls];
-    if (!Cls) throw new Error(`このバージョンのtransformers.jsには ${spec.cls} がありません`);
-    const m = await Cls.from_pretrained(spec.id, { progress_callback: cb, ...opts });
-    const pr = await AutoProcessor.from_pretrained(spec.id, { progress_callback: cb });
-    return [m, pr];
-  };
-  try {
-    setModelStatus("ライブラリを取得中…");
-    await loadLib(spec.lib);
-    setModelStatus(`${spec.label} を取得中…（初回のみ時間がかかります）`);
-    // スマホのSlimSAMは量子化でメモリ節約 / SAM 3 はWebGPUが使えれば使う
-    const first = samKey === "slim" ? (isMobile ? { dtype: "q8" } : {})
-                                     : (navigator.gpu ? { device: "webgpu" } : {});
-    try {
-      [model, processor] = await load(first);
-    } catch (e) {
-      if (!Object.keys(first).length) throw e;
-      console.warn("load with options failed, falling back", e);
-      setModelStatus("別の設定でモデルを取得し直しています…");
-      [model, processor] = await load({});
-    }
-    $("modelBar").style.width = "100%";
-    setModelStatus(`モデル準備完了 (${spec.label})`, "ok");
-  } catch (e) {
-    console.error(e);
-    modelPromise = null;
-    setModelStatus("モデルを読み込めませんでした。ネットワークを確認してください。 " + (e.message || e), "err");
-  }
-  updateButtons();
-}
-// スマホはカメラ起動中にタブが破棄されやすいので、写真を受け取るまでモデルを読み込まない
-if (engine === "sam") ensureModel();
-else setModelStatus("SAM方式を選ぶとモデルを読み込みます");
-
-async function encodeImage() {
-  if (!model || !processor || !base) return;
-  setBusy("画像を解析中…（数秒〜数十秒）");
-  try {
-    const blob = await new Promise((r) => base.toBlob(r, "image/png"));
-    const url = URL.createObjectURL(blob);
-    const raw = await RawImage.read(url);
-    URL.revokeObjectURL(url);
-    imageInputs = await processor(raw);
-    embeddings = await model.get_image_embeddings(imageInputs);
-    setRunStatus("準備できました。シャーレ範囲を確認して「自動検出」を押してください。");
-  } catch (e) {
-    console.error(e);
-    setRunStatus("画像の解析に失敗しました: " + (e.message || e), true);
-  } finally {
-    setBusy("");
-    updateButtons();
-  }
-}
-
-/* ---------- Image loading ---------- */
-async function loadImage(file) {
-  if (!file) return;
-  cancelFlag = true;
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  try {
-    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
-  } catch { setRunStatus("画像を開けませんでした。", true); return; }
-  const s = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-  W = Math.round(img.naturalWidth * s); H = Math.round(img.naturalHeight * s);
-  imgInfo = { name: file.name || "camera", ow: img.naturalWidth, oh: img.naturalHeight };
-  resetRec();
-  base = document.createElement("canvas"); base.width = W; base.height = H;
-  base.getContext("2d").drawImage(img, 0, 0, W, H);
-  URL.revokeObjectURL(url);
-
-  ovCanvas = document.createElement("canvas"); ovCanvas.width = W; ovCanvas.height = H;
-  ovCtx = ovCanvas.getContext("2d");
-  ovImg = ovCtx.createImageData(W, H);
-
-  view.width = W; view.height = H; view.hidden = false;
-  drop.style.display = "none";
-
-  colonies.clear(); nextId = 1;
-  labelMap = new Int32Array(W * H);
-  embeddings = null; imageInputs = null;
-  const m = Math.min(W, H);
-  roi = { cx: W / 2, cy: H / 2, r: m * 0.47 };
-  setMode("roi");
-  setRunStatus("");
-  setProg("0");
-  updateButtons(); queueRender(); updateCount();
-  if (engine === "sam") {
-    setBusy("モデルを準備中…");
-    await ensureModel();
-    setBusy("");
-    if (model) await encodeImage();
-  } else {
-    setRunStatus("準備できました。シャーレ範囲を確認して「自動検出」を押してください。");
-  }
-}
-const camInput = $("cam");
-drop.addEventListener("click", () => fileInput.click());
-$("dCam").addEventListener("click", (e) => { e.stopPropagation(); camInput.click(); });
-$("dPick").addEventListener("click", (e) => { e.stopPropagation(); fileInput.click(); });
-$("camBtn").addEventListener("click", () => camInput.click());
-$("pickBtn").addEventListener("click", () => fileInput.click());
-camInput.addEventListener("change", () => { loadImage(camInput.files[0]); camInput.value = ""; });
-drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
-fileInput.addEventListener("change", () => { loadImage(fileInput.files[0]); fileInput.value = ""; });
-["dragenter", "dragover"].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-document.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadImage(f); });
-$("view").addEventListener("dblclick", () => {}); // no-op
-document.addEventListener("keydown", (e) => {
-  if (e.target.tagName === "INPUT") return;
-  if (e.key === "o") fileInput.click();
-});
-
-/* ---------- SAM segmentation of one point ---------- */
-async function segmentAt(x, y) {
-  const reshaper = typeof processor.reshape_input_points === "function"
-    ? processor
-    : (processor.image_processor || processor.components?.image_processor);
-  const pts = reshaper.reshape_input_points(
-    [[[x, y]]], imageInputs.original_sizes, imageInputs.reshaped_input_sizes
-  );
-  const labels = new Tensor("int64", new BigInt64Array([1n]), [1, 1, 1]);
-  const out = await model({ ...embeddings, input_points: pts, input_labels: labels });
-  const poster = typeof processor.post_process_masks === "function"
-    ? processor
-    : (processor.image_processor || processor.components?.image_processor);
-  const masks = await poster.post_process_masks(
-    out.pred_masks, imageInputs.original_sizes, imageInputs.reshaped_input_sizes
-  );
-  return { mask: masks[0], iou: Array.from(out.iou_scores.data) };
-}
-
-function params() {
-  const minD = +$("minD").value, maxD = +$("maxD").value;
-  return {
-    minA: Math.PI / 4 * minD * minD,
-    maxA: Math.PI / 4 * maxD * maxD,
-    R: Math.ceil(maxD * 0.9) + 4,
-    iouThr: +$("iou").value,
-    spacing: +$("spacing").value
-  };
-}
-
-// 3つの候補マスクからコロニーらしいものを選ぶ
-function pickCandidate(res, x, y, P) {
-  const data = res.mask.data;
-  const dims = res.mask.dims;          // [1, 3, H, W]
-  const K = dims[dims.length - 3], mh = dims[dims.length - 2], mw = dims[dims.length - 1];
-  const x0 = Math.max(0, x - P.R), x1 = Math.min(mw - 1, x + P.R);
-  const y0 = Math.max(0, y - P.R), y1 = Math.min(mh - 1, y + P.R);
-  let best = null;
-  for (let k = 0; k < K; k++) {
-    if ((res.iou[k] ?? 0) < P.iouThr) continue;
-    const off = k * mh * mw;
-    const pixels = [];
-    let minx = 1e9, maxx = -1, miny = 1e9, maxy = -1, sx = 0, sy = 0, touches = false;
-    for (let yy = y0; yy <= y1; yy++) {
-      const row = off + yy * mw;
-      for (let xx = x0; xx <= x1; xx++) {
-        if (data[row + xx]) {
-          pixels.push(yy * mw + xx);
-          if (xx < minx) minx = xx; if (xx > maxx) maxx = xx;
-          if (yy < miny) miny = yy; if (yy > maxy) maxy = yy;
-          sx += xx; sy += yy;
-          if ((xx === x0 && x0 > 0) || (xx === x1 && x1 < mw - 1) ||
-              (yy === y0 && y0 > 0) || (yy === y1 && y1 < mh - 1)) touches = true;
-        }
-      }
-    }
-    const area = pixels.length;
-    if (area < P.minA || area > P.maxA || touches) continue;
-    const bw = maxx - minx + 1, bh = maxy - miny + 1;
-    if (area / (bw * bh) < 0.5) continue;                       // 細長い/不規則な形を除外
-    if (Math.max(bw, bh) / Math.min(bw, bh) > 2.4) continue;
-    if (!(data[off + y * mw + x])) continue;                    // 指定点を含むこと
-    if (!best || res.iou[k] > best.iou) {
-      best = { pixels, area, iou: res.iou[k], cx: sx / area, cy: sy / area };
-    }
-  }
-  return best;
-}
-
-function inRoi(x, y) {
-  if (!roi) return true;
-  const dx = x - roi.cx, dy = y - roi.cy;
-  return dx * dx + dy * dy <= roi.r * roi.r;
-}
-
-function addColony(c, maxOverlap = 0.3) {
-  if (!inRoi(c.cx, c.cy)) return false;
-  let ov = 0;
-  for (const p of c.pixels) if (labelMap[p] > 0) ov++;
-  if (ov / c.pixels.length > maxOverlap) return false;
-  const id = nextId++;
-  c.id = id;
-  const hue = (id * 137.508) % 360;
-  c.color = hslToRgb(hue / 360, 0.85, 0.55);
-  c.mult = 1;
-  for (const p of c.pixels) if (labelMap[p] === 0) labelMap[p] = id;
-  colonies.set(id, c);
-  return true;
-}
-function removeColony(id) {
-  const c = colonies.get(id); if (!c) return;
-  for (const p of c.pixels) if (labelMap[p] === id) labelMap[p] = 0;
-  colonies.delete(id);
-}
-function hslToRgb(h, s, l) {
-  const f = (n) => {
-    const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l);
-    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
-  };
-  return [f(0), f(8), f(4)];
-}
-
-/* ---------- Auto detection ---------- */
-async function runAuto() {
-  if (engine === "light") return runLight();
-  if (running || !embeddings) return;
-  const P = params();
-  colonies.clear(); nextId = 1; labelMap.fill(0); resetRec();
-
-  const pts = [];
-  let row = 0;
-  for (let y = P.spacing / 2; y < H; y += P.spacing, row++) {
-    for (let x = P.spacing / 2 + (row % 2 ? P.spacing / 2 : 0); x < W; x += P.spacing) {
-      const xi = Math.round(x), yi = Math.round(y);
-      if (inRoi(xi, yi)) pts.push([xi, yi]);
-    }
-  }
-  if (!pts.length) { setRunStatus("探索点がありません。範囲か間隔を見直してください。", true); return; }
-
-  running = true; cancelFlag = false; updateButtons();
-  const t0 = performance.now();
-  let done = 0;
-  let wl = null;
-  try { wl = await navigator.wakeLock?.request("screen"); } catch {}
-  try {
-    for (const [x, y] of pts) {
-      if (cancelFlag) break;
-      done++;
-      if (labelMap[y * W + x] === 0) {
-        const res = await segmentAt(x, y);
-        const cand = pickCandidate(res, x, y, P);
-        if (cand) { cand.src = "auto"; addColony(cand); }
-      }
-      if (done % 4 === 0) {
-        setProg((done / pts.length * 100).toFixed(1) + "%");
-        const el = (performance.now() - t0) / 1000;
-        const eta = el / done * (pts.length - done);
-        setRunStatus(`探索中 ${done} / ${pts.length} 点　残り約 ${Math.ceil(eta)} 秒`);
-        updateCount(); queueRender();
-        await new Promise((r) => setTimeout(r, 0));
-      }
-    }
-    setProg("100%");
-    setRunStatus(cancelFlag ? "停止しました。" : `完了 (${((performance.now() - t0) / 1000).toFixed(1)} 秒)。誤りは「追加」「削除」で直せます。`);
-  } catch (e) {
-    console.error(e);
-    setRunStatus("検出中にエラー: " + (e.message || e), true);
-  } finally {
-    try { wl?.release(); } catch {}
-    finishRec();
-    running = false; updateButtons(); updateCount(); queueRender();
-  }
-}
-$("run").onclick = runAuto;
-$("stop").onclick = () => { cancelFlag = true; };
-$("mRun").onclick = () => { running ? (cancelFlag = true) : runAuto(); };
-$("cluster").addEventListener("change", () => { updateCount(); queueRender(); });
-
-/* ---------- Light engine (no SAM) ---------- */
-/* LIGHT-CORE-START */
-function boxMean(src, mask, r, W, H) {
-  const w1 = W + 1;
-  const I = new Float64Array(w1 * (H + 1)), M = new Float64Array(w1 * (H + 1));
-  for (let y = 0; y < H; y++) {
-    let rs = 0, rm = 0;
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x, m = mask ? mask[i] : 1;
-      rs += src[i] * m; rm += m;
-      const j = (y + 1) * w1 + x + 1;
-      I[j] = I[j - w1] + rs; M[j] = M[j - w1] + rm;
-    }
-  }
-  const out = new Float32Array(W * H);
-  for (let y = 0; y < H; y++) {
-    const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
-    for (let x = 0; x < W; x++) {
-      const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1);
-      const a = y0 * w1 + x0, b = y0 * w1 + x1, c = y1 * w1 + x0, d = y1 * w1 + x1;
-      const m = M[d] - M[b] - M[c] + M[a];
-      out[y * W + x] = m > 0 ? (I[d] - I[b] - I[c] + I[a]) / m : 0;
-    }
-  }
-  return out;
-}
-function otsuIdx(hist, total) {
-  let sum = 0; for (let i = 0; i < hist.length; i++) sum += i * hist[i];
-  let sB = 0, wB = 0, best = -1, idx = 0;
-  for (let i = 0; i < hist.length; i++) {
-    wB += hist[i]; if (!wB) continue;
-    const wF = total - wB; if (!wF) break;
-    sB += i * hist[i];
-    const mB = sB / wB, mF = (sum - sB) / wF;
-    const between = wB * wF * (mB - mF) * (mB - mF);
-    if (between > best) { best = between; idx = i; }
-  }
-  return idx;
-}
-function detectLight(rgba, W, H, o) {
-  const n = W * H;
-  const minA = Math.PI / 4 * o.minD * o.minD, maxA = Math.PI / 4 * o.maxD * o.maxD;
-  const gray = new Float32Array(n), m = new Uint8Array(n), roi = o.roi;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = y * W + x, k = i * 4;
-    gray[i] = 0.299 * rgba[k] + 0.587 * rgba[k + 1] + 0.114 * rgba[k + 2];
-    if (!roi) m[i] = 1;
-    else { const dx = x - roi.cx, dy = y - roi.cy; m[i] = dx * dx + dy * dy <= roi.r * roi.r ? 1 : 0; }
-  }
-  const sm = boxMean(gray, null, 1, W, H);
-  const bg = boxMean(sm, m, Math.max(12, Math.round(o.maxD)), W, H);
-
-  // 明暗の向き
-  let pol = 1;
-  if (o.polar === "bright") pol = 1;
-  else if (o.polar === "dark") pol = -1;
-  else {
-    let cnt = 0, sum = 0;
-    for (let i = 0; i < n; i++) if (m[i]) { sum += sm[i] - bg[i]; cnt++; }
-    if (cnt) {
-      const mean = sum / cnt; let s2 = 0, s3 = 0;
-      for (let i = 0; i < n; i++) if (m[i]) { const d = sm[i] - bg[i] - mean; s2 += d * d; s3 += d * d * d; }
-      pol = s3 >= 0 ? 1 : -1;
-    }
-  }
-
-  // Otsu でしきい値
-  const LO = -64, STEP = 0.75, hist = new Float64Array(256);
-  const S = new Float32Array(n);
-  let total = 0;
-  for (let i = 0; i < n; i++) {
-    if (!m[i]) continue;
-    const v = pol * (sm[i] - bg[i]); S[i] = v;
-    hist[Math.max(0, Math.min(255, Math.floor((v - LO) / STEP)))]++; total++;
-  }
-  if (!total) return { colonies: [], thr: 0, pol };
-  let thr = (LO + (otsuIdx(hist, total) + 0.5) * STEP) / (o.sens || 1);
-  thr = Math.max(thr, 5);
-  const bin = new Uint8Array(n);
-  for (let i = 0; i < n; i++) bin[i] = m[i] && S[i] > thr ? 1 : 0;
-
-  // 連結成分 → 距離変換で重なりを分離
-  const lab = new Int32Array(n), stack = new Int32Array(n), out = [];
-  let cid = 0;
-  const SQ = 1.4142;
-  for (let s0 = 0; s0 < n; s0++) {
-    if (!bin[s0] || lab[s0]) continue;
-    cid++;
-    let sp = 0; stack[sp++] = s0; lab[s0] = cid;
-    const px = []; let x0 = W, x1 = -1, y0 = H, y1 = -1;
-    while (sp) {
-      const p = stack[--sp]; px.push(p);
-      const x = p % W, y = (p / W) | 0;
-      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-      for (let dy = -1; dy <= 1; dy++) {
-        const yy = y + dy; if (yy < 0 || yy >= H) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          if (!dx && !dy) continue;
-          const xx = x + dx; if (xx < 0 || xx >= W) continue;
-          const q = yy * W + xx;
-          if (bin[q] && !lab[q]) { lab[q] = cid; stack[sp++] = q; }
-        }
-      }
-    }
-    const area = px.length;
-    if (area < minA || area > maxA * 8) continue;
-
-    const bw = x1 - x0 + 3, bh = y1 - y0 + 3;
-    const dt = new Float32Array(bw * bh), inside = new Uint8Array(bw * bh);
-    for (const p of px) { const i = ((p / W) | 0) - y0 + 1; const j = i * bw + (p % W) - x0 + 1; inside[j] = 1; dt[j] = 1e6; }
-    for (let y = 1; y < bh - 1; y++) for (let x = 1; x < bw - 1; x++) {
-      const i = y * bw + x; if (!inside[i]) continue;
-      dt[i] = Math.min(dt[i], dt[i - 1] + 1, dt[i - bw] + 1, dt[i - bw - 1] + SQ, dt[i - bw + 1] + SQ);
-    }
-    for (let y = bh - 2; y >= 1; y--) for (let x = bw - 2; x >= 1; x--) {
-      const i = y * bw + x; if (!inside[i]) continue;
-      dt[i] = Math.min(dt[i], dt[i + 1] + 1, dt[i + bw] + 1, dt[i + bw + 1] + SQ, dt[i + bw - 1] + SQ);
-    }
-    const rmin = Math.max(1.5, o.minD * 0.35), cand = [];
-    for (let y = 1; y < bh - 1; y++) for (let x = 1; x < bw - 1; x++) {
-      const v = dt[y * bw + x]; if (v < rmin) continue;
-      let ok = true;
-      for (let dy = -2; dy <= 2 && ok; dy++) {
-        const yy = y + dy; if (yy < 0 || yy >= bh) continue;
-        for (let dx = -2; dx <= 2; dx++) {
-          const xx = x + dx; if (xx < 0 || xx >= bw) continue;
-          if (dt[yy * bw + xx] > v) { ok = false; break; }
-        }
-      }
-      if (ok) cand.push([x, y, v]);
-    }
-    cand.sort((a, b) => b[2] - a[2]);
-    const peaks = [];
-    for (const c of cand) {
-      let keep = true;
-      for (const q of peaks) if (Math.hypot(c[0] - q[0], c[1] - q[1]) < q[2]) { keep = false; break; }
-      if (keep) { peaks.push(c); if (peaks.length >= 300) break; }
-    }
-    if (!peaks.length) continue;
-
-    let parts;
-    if (peaks.length === 1) parts = [px];
-    else {
-      parts = peaks.map(() => []);
-      for (const p of px) {
-        const x = (p % W) - x0 + 1, y = ((p / W) | 0) - y0 + 1;
-        let b = 0, bd = 1e18;
-        for (let k = 0; k < peaks.length; k++) {
-          const dx = x - peaks[k][0], dy = y - peaks[k][1], d = dx * dx + dy * dy;
-          if (d < bd) { bd = d; b = k; }
-        }
-        parts[b].push(p);
-      }
-    }
-    for (const part of parts) {
-      const a = part.length;
-      if (a < minA || a > maxA) continue;
-      let bx0 = W, bx1 = -1, by0 = H, by1 = -1, sx = 0, sy = 0;
-      for (const p of part) {
-        const x = p % W, y = (p / W) | 0;
-        if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
-        sx += x; sy += y;
-      }
-      const bw2 = bx1 - bx0 + 1, bh2 = by1 - by0 + 1;
-      if (a / (bw2 * bh2) < 0.45 || Math.max(bw2, bh2) / Math.min(bw2, bh2) > 3) continue;
-      out.push({ pixels: part, area: a, iou: 1, cx: sx / a, cy: sy / a });
-    }
-  }
-  return { colonies: out, thr, pol };
-}
-/* LIGHT-CORE-END */
-
-async function runLight() {
-  if (running || !base) return;
-  colonies.clear(); nextId = 1; labelMap.fill(0); resetRec();
-  running = true; cancelFlag = false; updateButtons();
-  setBusy("検出中…"); setRunStatus(""); setProg("30%");
-  await new Promise((r) => setTimeout(r, 40));
-  try {
-    const rgba = base.getContext("2d").getImageData(0, 0, W, H).data;
-    const res = detectLight(rgba, W, H, {
-      roi, minD: +$("minD").value, maxD: +$("maxD").value,
-      sens: +$("sens").value, polar: $("polar").value
-    });
-    for (const c of res.colonies) { c.src = "auto"; addColony(c); }
-    rec.thr = res.thr; rec.pol = res.pol;
-    setProg("100%");
-    setRunStatus(`完了。${res.pol > 0 ? "背景より明るい" : "背景より暗い"}コロニーとして検出しました。誤りは「追加」「削除」で直せます。`);
-  } catch (e) {
-    console.error(e);
-    setRunStatus("検出中にエラー: " + (e.message || e), true);
-  } finally {
-    setBusy(""); finishRec(); running = false; updateButtons(); updateCount(); queueRender();
-  }
-}
-
-/* ---------- Counting ---------- */
-function stats() {
-  const list = [...colonies.values()];
-  if (!list.length) return { n: 0, total: 0, extra: 0, med: 0 };
-  const areas = list.map((c) => c.area).sort((a, b) => a - b);
-  const med = areas[Math.floor(areas.length / 2)];
-  const useCluster = $("cluster").checked && list.length >= 5;
-  let total = 0;
-  for (const c of list) {
-    c.mult = useCluster && c.area > 1.7 * med ? Math.max(1, Math.round(c.area / med)) : 1;
-    total += c.mult;
-  }
-  return { n: list.length, total, extra: total - list.length, med };
-}
-function updateCount() {
-  const s = stats();
-  const shown = s.n ? s.total : (base ? "0" : "–");
-  $("total").textContent = shown; $("mTotal").textContent = shown;
-  $("sub").textContent = s.n
-    ? (s.extra > 0 ? `検出 ${s.n} 個 ＋ 塊の換算 ${s.extra} 個` : `検出 ${s.n} 個`)
-    : "";
-  updateButtons();
-}
-
-/* ---------- Rendering ---------- */
-function queueRender() {
-  if (renderQueued) return;
-  renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; render(); });
-}
-function render() {
-  if (!base) return;
-  ctx.globalAlpha = 1;
-  ctx.drawImage(base, 0, 0);
-
-  const d = ovImg.data; d.fill(0);
-  for (const c of colonies.values()) {
-    const [r, g, b] = c.color, id = c.id;
-    for (const p of c.pixels) {
-      if (labelMap[p] !== id) continue;
-      const x = p % W, y = (p / W) | 0;
-      const edge = x === 0 || y === 0 || x === W - 1 || y === H - 1 ||
-        labelMap[p - 1] !== id || labelMap[p + 1] !== id ||
-        labelMap[p - W] !== id || labelMap[p + W] !== id;
-      const o = p * 4;
-      d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = edge ? 255 : 105;
-    }
-  }
-  ovCtx.putImageData(ovImg, 0, 0);
-  ctx.drawImage(ovCanvas, 0, 0);
-
-  // 換算した塊のラベル
-  ctx.font = `bold ${Math.max(11, Math.round(W / 70))}px sans-serif`;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  for (const c of colonies.values()) {
-    if (c.mult > 1) {
-      const t = "×" + c.mult;
-      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.75)";
-      ctx.strokeText(t, c.cx, c.cy);
-      ctx.fillStyle = "#fff"; ctx.fillText(t, c.cx, c.cy);
-    }
-  }
-
-  if (roi) {
-    ctx.save();
-    ctx.lineWidth = Math.max(2, W / 400);
-    ctx.setLineDash([10, 7]);
-    ctx.strokeStyle = "#ffd166";
-    ctx.beginPath(); ctx.arc(roi.cx, roi.cy, roi.r, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
-  }
-}
-
-/* ---------- Pointer interaction ---------- */
-function toImg(e) {
-  const r = view.getBoundingClientRect();
-  return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
-}
-let dragging = false;
-view.addEventListener("pointerdown", (e) => {
-  if (!base || mode !== "roi") return;
-  const [x, y] = toImg(e);
-  dragging = true; view.setPointerCapture(e.pointerId);
-  roi = { cx: x, cy: y, r: 1 }; queueRender();
-});
-view.addEventListener("click", async (e) => {
-  if (!base) return;
-  const [x, y] = toImg(e);
-  if (mode === "remove") {
-    let id = labelMap[Math.round(y) * W + Math.round(x)];
-    if (!id) {
-      let bd = 20 * 20;
-      for (const c of colonies.values()) {
-        const d2 = (c.cx - x) ** 2 + (c.cy - y) ** 2;
-        if (d2 < bd) { bd = d2; id = c.id; }
-      }
-    }
-    if (id) { const cc = colonies.get(id); if (cc && cc.src !== "manual") rec.removedAuto++; removeColony(id); updateCount(); queueRender(); }
-  } else if (mode === "add" && engine === "light") {
-    const list = [...colonies.values()];
-    let rad = (+$("minD").value + +$("maxD").value) / 4;
-    if (list.length) {
-      const ar = list.map((c) => c.area).sort((a, b) => a - b);
-      rad = Math.sqrt(ar[Math.floor(ar.length / 2)] / Math.PI);
-    }
-    const pixels = [], cx = Math.round(x), cy = Math.round(y), ri = Math.ceil(rad);
-    for (let yy = cy - ri; yy <= cy + ri; yy++) for (let xx = cx - ri; xx <= cx + ri; xx++) {
-      if (xx >= 0 && yy >= 0 && xx < W && yy < H && (xx - cx) ** 2 + (yy - cy) ** 2 <= rad * rad) pixels.push(yy * W + xx);
-    }
-    if (pixels.length && addColony({ pixels, area: pixels.length, iou: 1, cx, cy, src: "manual" }, 0.5)) {
-      updateCount(); queueRender(); setRunStatus("コロニーを追加しました（中央値の大きさの円で登録）。");
-    } else setRunStatus("そこには追加できません（範囲外、または既存のコロニーと重なっています）。", true);
-  } else if (mode === "add") {
-    if (running || !embeddings) return;
-    const xi = Math.round(x), yi = Math.round(y);
-    setBusy("セグメンテーション中…");
-    try {
-      const P = params();
-      P.iouThr = Math.min(P.iouThr, 0.7);
-      const res = await segmentAt(xi, yi);
-      const cand = pickCandidate(res, xi, yi, P);
-      if (cand) cand.src = "manual";
-      if (cand && addColony(cand, 0.5)) { updateCount(); queueRender(); setRunStatus("コロニーを追加しました。"); }
-      else setRunStatus("その位置にコロニーを検出できませんでした。直径の設定を見直すか、中心付近をタップしてください。", true);
-    } catch (err) { console.error(err); setRunStatus("エラー: " + (err.message || err), true); }
-    finally { setBusy(""); }
-  }
-});
-view.addEventListener("pointermove", (e) => {
-  if (!dragging) return;
-  const [x, y] = toImg(e);
-  roi.r = Math.max(5, Math.hypot(x - roi.cx, y - roi.cy));
-  queueRender();
-});
-view.addEventListener("pointerup", () => { dragging = false; });
-view.addEventListener("pointercancel", () => { dragging = false; });
-
-/* ---------- Export ---------- */
-function download(name, blob) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
-const BOM = "\ufeff";
-const csvCell = (v) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-function methodName() {
-  const e = rec.engine || engine;
-  return e === "light" ? "軽量（画像処理）" : (rec.samLabel || MODELS[samKey].label);
-}
-function manualAlive() { let n = 0; for (const c of colonies.values()) if (c.src === "manual") n++; return n; }
-function buildRecord() {
-  const st = stats(), e = rec.engine || engine;
-  const rows = [
-    ["記録日時", nowStr()],
-    ["画像ファイル名", imgInfo.name],
-    ["元画像サイズ(px)", `${imgInfo.ow}×${imgInfo.oh}`],
-    ["解析画像サイズ(px)", `${W}×${H}`],
-    ["検出方式", methodName()],
-    ["直径の範囲(解析画像px)", `${$("minD").value}〜${$("maxD").value}`],
-  ];
-  if (e === "light") {
-    rows.push(["コロニーの色設定", { auto: "自動", bright: "背景より明るい", dark: "背景より暗い" }[$("polar").value]]);
-    if (rec.pol != null) rows.push(["判定された明暗", rec.pol > 0 ? "背景より明るい" : "背景より暗い"]);
-    rows.push(["検出感度", $("sens").value]);
-    if (rec.thr != null) rows.push(["使用したしきい値(輝度差)", rec.thr.toFixed(1)]);
-  } else {
-    rows.push(["探索点の間隔(px)", $("spacing").value], ["SAM信頼度しきい値", $("iou").value]);
-  }
-  rows.push(
-    ["大きな塊の換算", $("cluster").checked ? "あり" : "なし"],
-    ["シャーレ範囲", roi ? `中心(${roi.cx.toFixed(0)},${roi.cy.toFixed(0)}) 半径${roi.r.toFixed(0)}px` : "指定なし"],
-    ["自動検出 オブジェクト数", rec.autoObjs],
-    ["自動検出 換算後の個数", rec.autoTotal],
-    ["手動で削除（自動検出分）", rec.removedAuto],
-    ["手動で追加", manualAlive()],
-    ["最終 オブジェクト数", st.n],
-    ["最終 コロニー数（換算後）", st.total],
-    ["塊の換算による増分", st.extra]
-  );
-  return rows;
-}
-$("dlCsv").onclick = () => {
-  stats();
-  const lines = ["id,x_px,y_px,area_px,equiv_diameter_px,count,source"];
-  let i = 1;
-  for (const c of colonies.values()) {
-    lines.push([i++, c.cx.toFixed(1), c.cy.toFixed(1), c.area,
-      (2 * Math.sqrt(c.area / Math.PI)).toFixed(1), c.mult, c.src || "auto"].join(","));
-  }
-  download("colonies.csv", new Blob([BOM + lines.join("\n")], { type: "text/csv" }));
-};
-$("dlLog").onclick = () => {
-  const lines = ["項目,値", ...buildRecord().map(([k, v]) => csvCell(k) + "," + csvCell(v))];
-  download("colony_record.csv", new Blob([BOM + lines.join("\n")], { type: "text/csv" }));
-};
-$("dlPng").onclick = () => {
-  render();
-  const st = stats();
-  const fs = Math.max(12, Math.round(W / 55)), bandH = Math.round(fs * 3.8);
-  const c = document.createElement("canvas"); c.width = W; c.height = H + bandH;
-  const x = c.getContext("2d");
-  x.drawImage(view, 0, 0);
-  x.fillStyle = "#14262b"; x.fillRect(0, H, W, bandH);
-  x.fillStyle = "#ffffff"; x.textBaseline = "top";
-  x.font = `bold ${fs}px sans-serif`;
-  x.fillText(`${methodName()}　自動 ${rec.autoTotal} → 削除 ${rec.removedAuto} / 追加 ${manualAlive()} → 最終 ${st.total} 個`, fs * 0.6, H + fs * 0.5);
-  x.font = `${Math.round(fs * 0.85)}px sans-serif`; x.fillStyle = "#b9d3d2";
-  x.fillText(`${nowStr()}　${imgInfo.name}`, fs * 0.6, H + fs * 2.1);
-  c.toBlob((b) => download("colonies_result.png", b), "image/png");
-};
-
-/* ---------- Help popovers ---------- */
-const HELP = {
-  samModel: ["SAMモデル", [
-    "<b style='display:inline'>SlimSAM</b>：軽く、PCなら数十秒〜数分で解析できます。標準です。",
-    "<b style='display:inline'>SAM 3 Tracker</b>：新しく大きなモデルです。ダウンロードが大きく（数百MB〜GB単位の可能性）、メモリも多く使います。PCのChrome / Edgeで、WebGPUが使えると現実的です。最新版のtransformers.jsを読み込むため、動作は実験的です。",
-    "<span class='tip'>切り替えると、モデルを読み込み直して画像を再解析します。</span>"]],
-  engine: ["検出方式", [
-    "<b style='display:inline'>軽量（SAMなし）</b>：背景との明暗の差でコロニーを見つけ、くっついたものは形から分けます。メモリをほとんど使わないので、スマホ向きです。モデルの読み込みもありません。",
-    "<b style='display:inline'>SAM（高精度）</b>：AIモデルで1個ずつ輪郭を切り出します。淡いコロニーや複雑な背景に強い反面、モデルの読み込みに数十MB以上と大量のメモリが必要です。PC向きで、スマホでは強制終了することがあります。",
-    "<span class='tip'>まず軽量で試し、見落としや誤検出が多いときにPCでSAMを使うのがお勧めです。</span>"]],
-  polar: ["コロニーの色", [
-    "寒天（背景）に対して、コロニーが明るく見えるか暗く見えるかを指定します。",
-    "「自動」は画像の明暗の偏りから判断します。うまく検出されないときは、手動で切り替えてください。",
-    "<span class='tip'>白っぽいコロニーが色付き寒天にある場合は「明るい」、黒い背景に映るときも「明るい」が目安です。</span>"]],
-  sens: ["検出感度", [
-    "背景との差がどれだけあればコロニーとみなすかを、自動で決めた基準に対する倍率で調整します。",
-    "上げる（1より大きくする）と淡いコロニーも拾いますが、ノイズや影も拾いやすくなります。下げると確実なものだけになります。",
-    "<span class='tip'>見落としが多いときは上げ、背景の模様を拾うときは下げます。</span>"]],
-  spacing: ["探索点の間隔", [
-    "SAMに「ここに物体はありますか？」と尋ねる点を、格子状に並べる間隔です。",
-    "コロニーの直径より小さくすると、各コロニーに少なくとも1点が当たり、見落としが減ります。小さくするほど点の数が増え、処理は遅くなります。",
-    "<span class='tip'>目安：最小のコロニーの直径と同じか、やや小さい値。まず大きめで試し、見落としがあれば下げます。</span>"]],
-  minD: ["最小直径", [
-    "この直径（画像上のピクセル）より小さいマスクは、コロニーではなくノイズや傷として捨てます。",
-    "大きくしすぎると、小さなコロニーが消えます。",
-    "<span class='tip'>目安：最も小さいコロニーの直径の7〜8割。ゴミを拾う場合は上げます。</span>"]],
-  maxD: ["最大直径", [
-    "この直径より大きいマスクは、コロニーではないものとして捨てます。シャーレ全体、寒天の模様、フチの反射などを除外するための上限です。",
-    "小さくしすぎると、大きなコロニーや、くっついた塊が消えます。",
-    "<span class='tip'>目安：最大のコロニー（塊を含めて数えたいならその塊）の直径の1.2倍程度。</span>"]],
-  iou: ["SAMの信頼度しきい値", [
-    "SAMは点ごとに3つのマスク候補と、それぞれの「きれいに切り出せた度合い」（予測IoU）を返します。この値より低い候補は採用しません。",
-    "上げると誤検出が減りますが、輪郭が不鮮明なコロニーを取りこぼします。下げると拾いやすくなる代わりに、変な形のマスクが増えます。",
-    "<span class='tip'>目安：0.75〜0.90。コロニーが薄い・小さいときは下げます。</span>"]],
-  cluster: ["大きな塊の換算", [
-    "コロニーが重なって1つの大きなマスクになった場合に、個数を補正します。検出したマスクの面積の中央値を「コロニー1個分」とみなし、それより1.7倍を超えて大きいマスクは、面積 ÷ 中央値 を四捨五入した個数として数えます。",
-    "換算した塊には「×n」と表示されます。あくまで面積からの推定なので、重なりが多いときは目視で確認してください。",
-    "<span class='tip'>コロニーの大きさがもともと大きくばらつくプレートでは、オフにして検出数のまま数える方が正確です。検出が5個未満のときは換算しません。</span>"]]
-};
-const pop = $("pop");
-let popBtn = null;
-function closePop() {
-  pop.style.display = "none";
-  if (popBtn) { popBtn.setAttribute("aria-expanded", "false"); popBtn = null; }
-}
-function openPop(btn) {
-  const h = HELP[btn.dataset.help]; if (!h) return;
-  closePop();
-  popBtn = btn; btn.setAttribute("aria-expanded", "true");
-  pop.innerHTML = `<b>${h[0]}</b>` + h[1].map((t) => `<p>${t}</p>`).join("");
-  pop.style.display = "block";
-  const r = btn.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
-  let left = Math.min(Math.max(8, r.left - 12), window.innerWidth - pw - 8);
-  let top = r.bottom + 8;
-  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 8);
-  pop.style.left = left + "px"; pop.style.top = top + "px";
-}
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".help");
-  if (btn) { e.preventDefault(); popBtn === btn ? closePop() : openPop(btn); return; }
-  if (!pop.contains(e.target)) closePop();
-});
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const b = popBtn; closePop(); if (b) b.focus(); } });
-window.addEventListener("scroll", closePop, true);
-window.addEventListener("resize", closePop);
-
-document.body.dataset.engine = engine;
-$("samModel").addEventListener("change", async () => {
-  samKey = $("samModel").value;
-  cancelFlag = true;
-  try { await model?.dispose?.(); } catch {}
-  model = null; processor = null; embeddings = null; imageInputs = null; modelPromise = null;
-  $("modelBar").style.width = "0";
-  closePop(); updateButtons();
-  if (engine === "sam") {
-    setBusy("モデルを準備中…");
-    await ensureModel();
-    setBusy("");
-    if (model && base) await encodeImage();
-  }
-});
-document.querySelectorAll('input[name="engine"]').forEach((r) => {
-  r.checked = r.value === engine;
-  r.addEventListener("change", async () => {
-    if (!r.checked) return;
-    engine = r.value;
-    document.body.dataset.engine = engine;
-    closePop(); updateButtons();
-    if (engine === "sam") {
-      if (isMobile) setRunStatus("スマホではメモリ不足でブラウザが停止することがあります。", true);
-      if (base && !embeddings) {
-        setBusy("モデルを準備中…");
-        await ensureModel();
-        setBusy("");
-        if (model) await encodeImage();
-      } else ensureModel();
-    } else {
-      setRunStatus("準備できました。「自動検出」を押してください。");
-    }
-  });
-});
-
-setMode("roi");
-updateButtons();
-</script>
+<script type="module" src="./js/app.js"></script>
 </body>
 </html>
