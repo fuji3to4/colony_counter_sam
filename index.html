@@ -43,10 +43,53 @@
   .toolbar button[aria-pressed="true"]{background:#d9f0ec;color:#0c2a2a;border-color:#d9f0ec}
   .toolbar button:disabled{opacity:.4;cursor:not-allowed}
   .toolbar .spacer{flex:1}
-  .toolbar .hint{color:#8fb0b0;font-size:12px;align-self:center}
+  .toolbar .hint{color:#8fb0b0;font-size:12px;align-self:center;flex-basis:100%;order:10}
+  .toolbar button.src{border-color:#7fc4bd;color:#d9f0ec}
+  #drop .dbtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+  #drop .dbtns button{
+    font:inherit;font-size:15px;border-radius:8px;padding:12px 18px;cursor:pointer;
+    border:1px solid #7fc4bd;background:transparent;color:#e5f3f1;
+  }
+  #drop .dbtns button.cam{background:#d9f0ec;color:#0c2a2a;border-color:#d9f0ec;font-weight:700}
+  body[data-engine="light"] .sam-only{display:none}
+  body[data-engine="sam"] .light-only{display:none}
+  .engine{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .engine label{position:relative;display:block}
+  .engine input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+  .engine span.pill{
+    display:block;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;background:#fff;
+  }
+  .engine input:checked + span.pill{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .engine input:focus-visible + span.pill{outline:3px solid #f0b429;outline-offset:2px}
+  select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  .mbar{display:none}
+  @media (max-width:900px){
+    body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+    .mbar{
+      display:flex;align-items:center;gap:14px;position:fixed;left:0;right:0;bottom:0;z-index:40;
+      background:var(--panel);border-top:1px solid var(--line);
+      padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
+      box-shadow:0 -4px 16px rgba(0,0,0,.12);
+    }
+    .mbar .cnt{flex:1;display:flex;align-items:baseline;gap:8px}
+    .mbar .cnt span{font-size:12px;color:var(--muted)}
+    .mbar .cnt b{font-size:38px;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+    .mbar button{flex:none;min-width:130px}
+    .mbar .prog{position:absolute;left:0;right:0;top:-1px;height:3px}
+    .mbar .prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+    .count .num{font-size:64px}
+    #drop{inset:10px;padding:14px}
+  }
+  @media (pointer:coarse){
+    .toolbar button{padding:10px 14px;font-size:14px}
+    button.primary,button.secondary{padding:12px 16px}
+    .help{width:28px;height:28px;font-size:14px}
+    .row input[type=range]{height:32px}
+    .check input{width:20px;height:20px}
+  }
   #canvasBox{position:relative;display:flex;justify-content:center;align-items:center;min-height:280px}
-  canvas#view{display:block;max-width:100%;height:auto;touch-action:none}
-  canvas#view.roi{cursor:crosshair} canvas#view.add{cursor:copy} canvas#view.remove{cursor:not-allowed}
+  canvas#view{display:block;max-width:100%;height:auto;touch-action:manipulation;-webkit-touch-callout:none;user-select:none}
+  canvas#view.roi{cursor:crosshair;touch-action:none} canvas#view.add{cursor:copy} canvas#view.remove{cursor:not-allowed}
   #drop{
     position:absolute;inset:14px;border:2px dashed #3d6468;border-radius:8px;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
@@ -93,12 +136,28 @@
   #modelStatus,#runStatus{font-size:13px;color:var(--muted)}
   #modelStatus.ok{color:var(--accent)}
   #modelStatus.err,#runStatus.err{color:var(--warn)}
+
+  .lbl{display:inline-flex;align-items:center;gap:6px}
+  .help{
+    width:20px;height:20px;padding:0;border-radius:50%;border:1px solid var(--accent);
+    background:transparent;color:var(--accent);font:inherit;font-size:12px;font-weight:700;
+    line-height:1;cursor:pointer;flex:none;
+  }
+  .help[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink)}
+  #pop{
+    position:fixed;z-index:50;max-width:310px;background:#14262b;color:#eaf4f3;
+    border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.65;
+    box-shadow:0 8px 24px rgba(0,0,0,.28);display:none;
+  }
+  #pop b{display:block;margin-bottom:4px;font-size:13px}
+  #pop p{margin:0 0 6px} #pop p:last-child{margin:0}
+  #pop .tip{color:#9fd3cd}
 </style>
 </head>
 <body>
 <header>
   <h1>大腸菌コロニーカウンタ</h1>
-  <p>SlimSAM をブラウザ内で実行します。画像は外部に送信されません。</p>
+  <p>軽量な画像処理と SlimSAM の2つの方式を選べます。どちらもブラウザ内で動き、画像は外部に送信されません。</p>
 </header>
 
 <main>
@@ -110,18 +169,25 @@
         <button id="mDel" aria-pressed="false" disabled>コロニーを削除</button>
         <button id="clearRoi" disabled>範囲を解除</button>
         <span class="spacer"></span>
+        <button class="src" id="camBtn">撮影</button>
+        <button class="src" id="pickBtn">写真を選択</button>
         <span class="hint" id="modeHint"></span>
       </div>
       <div id="canvasBox">
         <canvas id="view" width="10" height="10" hidden></canvas>
         <div id="drop" tabindex="0" role="button" aria-label="画像を選択">
-          <strong>シャーレの画像をここにドロップ</strong>
-          <span>またはクリックして選択（JPEG / PNG）</span>
+          <strong>シャーレの写真を用意してください</strong>
+          <span>真上から、影や反射を避けて撮るとうまくいきます。PCでは画像のドロップも使えます。</span>
+          <div class="dbtns">
+            <button type="button" class="cam" id="dCam">カメラで撮影</button>
+            <button type="button" id="dPick">写真を選択</button>
+          </div>
         </div>
         <div id="busy" role="status"></div>
       </div>
     </div>
     <input type="file" id="file" accept="image/*" hidden>
+    <input type="file" id="cam" accept="image/*" capture="environment" hidden>
   </section>
 
   <aside>
@@ -131,7 +197,7 @@
       <div class="sub" id="sub"></div>
     </div>
 
-    <div class="card">
+    <div class="card sam-only">
       <h2>モデル</h2>
       <div id="modelStatus">読み込み待ち…</div>
       <div class="bar"><i id="modelBar"></i></div>
@@ -139,26 +205,46 @@
 
     <div class="card">
       <h2>検出設定</h2>
-      <div class="row">
-        <label for="spacing">探索点の間隔</label><output id="spacingO"></output>
+      <div class="engine" role="radiogroup" aria-label="検出方式">
+        <label><input type="radio" name="engine" value="light"><span class="pill">軽量（SAMなし）</span></label>
+        <label><input type="radio" name="engine" value="sam"><span class="pill">SAM（高精度）</span></label>
+        <button type="button" class="help" data-help="engine" aria-expanded="false" aria-label="検出方式の説明">?</button>
+      </div>
+      <div class="row sam-only">
+        <span class="lbl"><label for="spacing">探索点の間隔</label><button type="button" class="help" data-help="spacing" aria-expanded="false" aria-label="探索点の間隔の説明">?</button></span><output id="spacingO"></output>
         <input type="range" id="spacing" min="8" max="48" step="1" value="20">
       </div>
       <div class="row">
-        <label for="minD">最小直径</label><output id="minDO"></output>
+        <span class="lbl"><label for="minD">最小直径</label><button type="button" class="help" data-help="minD" aria-expanded="false" aria-label="最小直径の説明">?</button></span><output id="minDO"></output>
         <input type="range" id="minD" min="2" max="40" step="1" value="6">
       </div>
       <div class="row">
-        <label for="maxD">最大直径</label><output id="maxDO"></output>
+        <span class="lbl"><label for="maxD">最大直径</label><button type="button" class="help" data-help="maxD" aria-expanded="false" aria-label="最大直径の説明">?</button></span><output id="maxDO"></output>
         <input type="range" id="maxD" min="10" max="150" step="1" value="60">
       </div>
-      <div class="row">
-        <label for="iou">SAMの信頼度しきい値</label><output id="iouO"></output>
+      <div class="row sam-only">
+        <span class="lbl"><label for="iou">SAMの信頼度しきい値</label><button type="button" class="help" data-help="iou" aria-expanded="false" aria-label="SAMの信頼度しきい値の説明">?</button></span><output id="iouO"></output>
         <input type="range" id="iou" min="0.5" max="0.99" step="0.01" value="0.80">
       </div>
-      <label class="check">
+      <div class="row light-only">
+        <span class="lbl"><label for="polar">コロニーの色</label>
+        <button type="button" class="help" data-help="polar" aria-expanded="false" aria-label="コロニーの色の説明">?</button></span>
+        <select id="polar">
+          <option value="auto">自動</option>
+          <option value="bright">背景より明るい</option>
+          <option value="dark">背景より暗い</option>
+        </select>
+      </div>
+      <div class="row light-only">
+        <span class="lbl"><label for="sens">検出感度</label>
+        <button type="button" class="help" data-help="sens" aria-expanded="false" aria-label="検出感度の説明">?</button></span><output id="sensO"></output>
+        <input type="range" id="sens" min="0.5" max="2" step="0.05" value="1">
+      </div>
+      <div class="check">
         <input type="checkbox" id="cluster" checked>
-        <span>大きな塊は中央値の面積で割って個数に換算する</span>
-      </label>
+        <span class="lbl"><label for="cluster">大きな塊は中央値の面積で割って個数に換算する</label>
+        <button type="button" class="help" data-help="cluster" aria-expanded="false" aria-label="塊の換算の説明">?</button></span>
+      </div>
       <p class="note">長さの単位は、処理用に縮小した画像（長辺1024px以下）のピクセルです。</p>
     </div>
 
@@ -180,6 +266,14 @@
     </div>
   </aside>
 </main>
+
+<div class="mbar" role="region" aria-label="操作バー">
+  <div class="prog"><i id="mBar"></i></div>
+  <div class="cnt"><span>コロニー数</span><b id="mTotal">–</b></div>
+  <button class="primary" id="mRun" disabled>自動検出</button>
+</div>
+
+<div id="pop" role="dialog"></div>
 
 <script type="module">
 import { SamModel, AutoProcessor, RawImage, Tensor, env }
@@ -205,24 +299,27 @@ let roi = null;                        // {cx,cy,r}
 let mode = "roi";
 let running = false, cancelFlag = false;
 let renderQueued = false;
+let engine = matchMedia("(pointer:coarse)").matches ? "light" : "sam";
 
 /* ---------- UI helpers ---------- */
 const fmt = (v) => String(v);
+function setProg(w) { $("runBar").style.width = w; $("mBar").style.width = w; }
 function bindRange(id, suffix = "") {
   const el = $(id), out = $(id + "O");
   const upd = () => { out.textContent = el.value + suffix; };
   el.addEventListener("input", upd); upd();
 }
-bindRange("spacing", " px"); bindRange("minD", " px"); bindRange("maxD", " px"); bindRange("iou");
+bindRange("spacing", " px"); bindRange("minD", " px"); bindRange("maxD", " px"); bindRange("iou"); bindRange("sens", " ×");
+if (matchMedia("(pointer:coarse)").matches) { $("spacing").value = 26; $("spacing").dispatchEvent(new Event("input")); }
 
 function setBusy(msg) { busy.style.display = msg ? "block" : "none"; busy.textContent = msg || ""; }
 function setRunStatus(msg, err = false) { const e = $("runStatus"); e.textContent = msg; e.className = err ? "err" : ""; }
 function setModelStatus(msg, cls = "") { const e = $("modelStatus"); e.textContent = msg; e.className = cls; }
 
 const hints = {
-  roi: "シャーレの中心からふちまでドラッグして範囲を指定",
-  add: "見落としたコロニーをクリック",
-  remove: "誤検出をクリックして削除"
+  roi: "シャーレの中心からふちまで、指またはマウスでドラッグして範囲を指定",
+  add: "見落としたコロニーをタップ",
+  remove: "誤検出をタップして削除"
 };
 function setMode(m) {
   mode = m;
@@ -239,38 +336,57 @@ $("clearRoi").onclick = () => { roi = null; queueRender(); };
 
 function updateButtons() {
   const hasImg = !!base;
-  const ready = hasImg && !!embeddings && !!model;
+  const ready = hasImg && (engine === "light" || (!!embeddings && !!model));
   ["mRoi", "mAdd", "mDel", "clearRoi"].forEach((id) => { $(id).disabled = !hasImg; });
   $("mAdd").disabled = !ready || running;
   $("run").disabled = !ready || running;
   $("stop").disabled = !running;
   $("dlCsv").disabled = colonies.size === 0;
   $("dlPng").disabled = !hasImg;
+  $("mRun").disabled = running ? false : !ready;
+  $("mRun").textContent = running ? "停止" : "自動検出";
 }
 
 /* ---------- Model ---------- */
+const isMobile = matchMedia("(pointer:coarse)").matches;
+try { env.backends.onnx.wasm.numThreads = 1; } catch {}
+let modelPromise = null;
+function ensureModel() { return (modelPromise ||= loadModel()); }
 async function loadModel() {
+  const cb = (d) => {
+    if (d.status === "progress" && d.file) {
+      const p = Math.round(d.progress || 0);
+      setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
+      $("modelBar").style.width = p + "%";
+    }
+  };
+  const load = async (opts) => {
+    const m = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb, ...opts });
+    const pr = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
+    return [m, pr];
+  };
   try {
-    const cb = (d) => {
-      if (d.status === "progress" && d.file) {
-        const p = Math.round(d.progress || 0);
-        setModelStatus(`モデルを取得中… ${d.file.split("/").pop()} ${p}%`);
-        $("modelBar").style.width = p + "%";
-      }
-    };
     setModelStatus("モデルを取得中…（初回のみ時間がかかります）");
-    model = await SamModel.from_pretrained(MODEL_ID, { progress_callback: cb });
-    processor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb });
+    try {
+      // スマホでは量子化モデルでメモリを節約する
+      [model, processor] = await load(isMobile ? { dtype: "q8" } : {});
+    } catch (e) {
+      if (!isMobile) throw e;
+      console.warn("q8 load failed, falling back", e);
+      [model, processor] = await load({});
+    }
     $("modelBar").style.width = "100%";
     setModelStatus("モデル準備完了 (SlimSAM)", "ok");
-    if (base && !embeddings) await encodeImage();
-    updateButtons();
   } catch (e) {
     console.error(e);
+    modelPromise = null;
     setModelStatus("モデルを読み込めませんでした。ネットワークを確認してください。 " + (e.message || e), "err");
   }
+  updateButtons();
 }
-loadModel();
+// スマホはカメラ起動中にタブが破棄されやすいので、写真を受け取るまでモデルを読み込まない
+if (engine === "sam") ensureModel();
+else setModelStatus("SAM方式を選ぶとモデルを読み込みます");
 
 async function encodeImage() {
   if (!model || !processor || !base) return;
@@ -321,14 +437,26 @@ async function loadImage(file) {
   roi = { cx: W / 2, cy: H / 2, r: m * 0.47 };
   setMode("roi");
   setRunStatus("");
-  $("runBar").style.width = "0";
+  setProg("0");
   updateButtons(); queueRender(); updateCount();
-  if (model) await encodeImage();
-  else setRunStatus("モデルの読み込み完了後に画像を解析します。");
+  if (engine === "sam") {
+    setBusy("モデルを準備中…");
+    await ensureModel();
+    setBusy("");
+    if (model) await encodeImage();
+  } else {
+    setRunStatus("準備できました。シャーレ範囲を確認して「自動検出」を押してください。");
+  }
 }
+const camInput = $("cam");
 drop.addEventListener("click", () => fileInput.click());
+$("dCam").addEventListener("click", (e) => { e.stopPropagation(); camInput.click(); });
+$("dPick").addEventListener("click", (e) => { e.stopPropagation(); fileInput.click(); });
+$("camBtn").addEventListener("click", () => camInput.click());
+$("pickBtn").addEventListener("click", () => fileInput.click());
+camInput.addEventListener("change", () => { loadImage(camInput.files[0]); camInput.value = ""; });
 drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
-fileInput.addEventListener("change", () => loadImage(fileInput.files[0]));
+fileInput.addEventListener("change", () => { loadImage(fileInput.files[0]); fileInput.value = ""; });
 ["dragenter", "dragover"].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((t) => document.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
 document.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadImage(f); });
@@ -340,12 +468,18 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- SAM segmentation of one point ---------- */
 async function segmentAt(x, y) {
-  const pts = processor.image_processor.reshape_input_points(
+  const reshaper = typeof processor.reshape_input_points === "function"
+    ? processor
+    : (processor.image_processor || processor.components?.image_processor);
+  const pts = reshaper.reshape_input_points(
     [[[x, y]]], imageInputs.original_sizes, imageInputs.reshaped_input_sizes
   );
   const labels = new Tensor("int64", new BigInt64Array([1n]), [1, 1, 1]);
   const out = await model({ ...embeddings, input_points: pts, input_labels: labels });
-  const masks = await processor.post_process_masks(
+  const poster = typeof processor.post_process_masks === "function"
+    ? processor
+    : (processor.image_processor || processor.components?.image_processor);
+  const masks = await poster.post_process_masks(
     out.pred_masks, imageInputs.original_sizes, imageInputs.reshaped_input_sizes
   );
   return { mask: masks[0], iou: Array.from(out.iou_scores.data) };
@@ -436,6 +570,7 @@ function hslToRgb(h, s, l) {
 
 /* ---------- Auto detection ---------- */
 async function runAuto() {
+  if (engine === "light") return runLight();
   if (running || !embeddings) return;
   const P = params();
   colonies.clear(); nextId = 1; labelMap.fill(0);
@@ -453,6 +588,8 @@ async function runAuto() {
   running = true; cancelFlag = false; updateButtons();
   const t0 = performance.now();
   let done = 0;
+  let wl = null;
+  try { wl = await navigator.wakeLock?.request("screen"); } catch {}
   try {
     for (const [x, y] of pts) {
       if (cancelFlag) break;
@@ -463,7 +600,7 @@ async function runAuto() {
         if (cand) addColony(cand);
       }
       if (done % 4 === 0) {
-        $("runBar").style.width = (done / pts.length * 100).toFixed(1) + "%";
+        setProg((done / pts.length * 100).toFixed(1) + "%");
         const el = (performance.now() - t0) / 1000;
         const eta = el / done * (pts.length - done);
         setRunStatus(`探索中 ${done} / ${pts.length} 点　残り約 ${Math.ceil(eta)} 秒`);
@@ -471,18 +608,215 @@ async function runAuto() {
         await new Promise((r) => setTimeout(r, 0));
       }
     }
-    $("runBar").style.width = "100%";
+    setProg("100%");
     setRunStatus(cancelFlag ? "停止しました。" : `完了 (${((performance.now() - t0) / 1000).toFixed(1)} 秒)。誤りは「追加」「削除」で直せます。`);
   } catch (e) {
     console.error(e);
     setRunStatus("検出中にエラー: " + (e.message || e), true);
   } finally {
+    try { wl?.release(); } catch {}
     running = false; updateButtons(); updateCount(); queueRender();
   }
 }
 $("run").onclick = runAuto;
 $("stop").onclick = () => { cancelFlag = true; };
+$("mRun").onclick = () => { running ? (cancelFlag = true) : runAuto(); };
 $("cluster").addEventListener("change", () => { updateCount(); queueRender(); });
+
+/* ---------- Light engine (no SAM) ---------- */
+/* LIGHT-CORE-START */
+function boxMean(src, mask, r, W, H) {
+  const w1 = W + 1;
+  const I = new Float64Array(w1 * (H + 1)), M = new Float64Array(w1 * (H + 1));
+  for (let y = 0; y < H; y++) {
+    let rs = 0, rm = 0;
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x, m = mask ? mask[i] : 1;
+      rs += src[i] * m; rm += m;
+      const j = (y + 1) * w1 + x + 1;
+      I[j] = I[j - w1] + rs; M[j] = M[j - w1] + rm;
+    }
+  }
+  const out = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
+    for (let x = 0; x < W; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1);
+      const a = y0 * w1 + x0, b = y0 * w1 + x1, c = y1 * w1 + x0, d = y1 * w1 + x1;
+      const m = M[d] - M[b] - M[c] + M[a];
+      out[y * W + x] = m > 0 ? (I[d] - I[b] - I[c] + I[a]) / m : 0;
+    }
+  }
+  return out;
+}
+function otsuIdx(hist, total) {
+  let sum = 0; for (let i = 0; i < hist.length; i++) sum += i * hist[i];
+  let sB = 0, wB = 0, best = -1, idx = 0;
+  for (let i = 0; i < hist.length; i++) {
+    wB += hist[i]; if (!wB) continue;
+    const wF = total - wB; if (!wF) break;
+    sB += i * hist[i];
+    const mB = sB / wB, mF = (sum - sB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > best) { best = between; idx = i; }
+  }
+  return idx;
+}
+function detectLight(rgba, W, H, o) {
+  const n = W * H;
+  const minA = Math.PI / 4 * o.minD * o.minD, maxA = Math.PI / 4 * o.maxD * o.maxD;
+  const gray = new Float32Array(n), m = new Uint8Array(n), roi = o.roi;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, k = i * 4;
+    gray[i] = 0.299 * rgba[k] + 0.587 * rgba[k + 1] + 0.114 * rgba[k + 2];
+    if (!roi) m[i] = 1;
+    else { const dx = x - roi.cx, dy = y - roi.cy; m[i] = dx * dx + dy * dy <= roi.r * roi.r ? 1 : 0; }
+  }
+  const sm = boxMean(gray, null, 1, W, H);
+  const bg = boxMean(sm, m, Math.max(12, Math.round(o.maxD)), W, H);
+
+  // 明暗の向き
+  let pol = 1;
+  if (o.polar === "bright") pol = 1;
+  else if (o.polar === "dark") pol = -1;
+  else {
+    let cnt = 0, sum = 0;
+    for (let i = 0; i < n; i++) if (m[i]) { sum += sm[i] - bg[i]; cnt++; }
+    if (cnt) {
+      const mean = sum / cnt; let s2 = 0, s3 = 0;
+      for (let i = 0; i < n; i++) if (m[i]) { const d = sm[i] - bg[i] - mean; s2 += d * d; s3 += d * d * d; }
+      pol = s3 >= 0 ? 1 : -1;
+    }
+  }
+
+  // Otsu でしきい値
+  const LO = -64, STEP = 0.75, hist = new Float64Array(256);
+  const S = new Float32Array(n);
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    if (!m[i]) continue;
+    const v = pol * (sm[i] - bg[i]); S[i] = v;
+    hist[Math.max(0, Math.min(255, Math.floor((v - LO) / STEP)))]++; total++;
+  }
+  if (!total) return { colonies: [], thr: 0, pol };
+  let thr = (LO + (otsuIdx(hist, total) + 0.5) * STEP) / (o.sens || 1);
+  thr = Math.max(thr, 5);
+  const bin = new Uint8Array(n);
+  for (let i = 0; i < n; i++) bin[i] = m[i] && S[i] > thr ? 1 : 0;
+
+  // 連結成分 → 距離変換で重なりを分離
+  const lab = new Int32Array(n), stack = new Int32Array(n), out = [];
+  let cid = 0;
+  const SQ = 1.4142;
+  for (let s0 = 0; s0 < n; s0++) {
+    if (!bin[s0] || lab[s0]) continue;
+    cid++;
+    let sp = 0; stack[sp++] = s0; lab[s0] = cid;
+    const px = []; let x0 = W, x1 = -1, y0 = H, y1 = -1;
+    while (sp) {
+      const p = stack[--sp]; px.push(p);
+      const x = p % W, y = (p / W) | 0;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy; if (yy < 0 || yy >= H) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const xx = x + dx; if (xx < 0 || xx >= W) continue;
+          const q = yy * W + xx;
+          if (bin[q] && !lab[q]) { lab[q] = cid; stack[sp++] = q; }
+        }
+      }
+    }
+    const area = px.length;
+    if (area < minA || area > maxA * 8) continue;
+
+    const bw = x1 - x0 + 3, bh = y1 - y0 + 3;
+    const dt = new Float32Array(bw * bh), inside = new Uint8Array(bw * bh);
+    for (const p of px) { const i = ((p / W) | 0) - y0 + 1; const j = i * bw + (p % W) - x0 + 1; inside[j] = 1; dt[j] = 1e6; }
+    for (let y = 1; y < bh - 1; y++) for (let x = 1; x < bw - 1; x++) {
+      const i = y * bw + x; if (!inside[i]) continue;
+      dt[i] = Math.min(dt[i], dt[i - 1] + 1, dt[i - bw] + 1, dt[i - bw - 1] + SQ, dt[i - bw + 1] + SQ);
+    }
+    for (let y = bh - 2; y >= 1; y--) for (let x = bw - 2; x >= 1; x--) {
+      const i = y * bw + x; if (!inside[i]) continue;
+      dt[i] = Math.min(dt[i], dt[i + 1] + 1, dt[i + bw] + 1, dt[i + bw + 1] + SQ, dt[i + bw - 1] + SQ);
+    }
+    const rmin = Math.max(1.5, o.minD * 0.35), cand = [];
+    for (let y = 1; y < bh - 1; y++) for (let x = 1; x < bw - 1; x++) {
+      const v = dt[y * bw + x]; if (v < rmin) continue;
+      let ok = true;
+      for (let dy = -2; dy <= 2 && ok; dy++) {
+        const yy = y + dy; if (yy < 0 || yy >= bh) continue;
+        for (let dx = -2; dx <= 2; dx++) {
+          const xx = x + dx; if (xx < 0 || xx >= bw) continue;
+          if (dt[yy * bw + xx] > v) { ok = false; break; }
+        }
+      }
+      if (ok) cand.push([x, y, v]);
+    }
+    cand.sort((a, b) => b[2] - a[2]);
+    const peaks = [];
+    for (const c of cand) {
+      let keep = true;
+      for (const q of peaks) if (Math.hypot(c[0] - q[0], c[1] - q[1]) < q[2]) { keep = false; break; }
+      if (keep) { peaks.push(c); if (peaks.length >= 300) break; }
+    }
+    if (!peaks.length) continue;
+
+    let parts;
+    if (peaks.length === 1) parts = [px];
+    else {
+      parts = peaks.map(() => []);
+      for (const p of px) {
+        const x = (p % W) - x0 + 1, y = ((p / W) | 0) - y0 + 1;
+        let b = 0, bd = 1e18;
+        for (let k = 0; k < peaks.length; k++) {
+          const dx = x - peaks[k][0], dy = y - peaks[k][1], d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; b = k; }
+        }
+        parts[b].push(p);
+      }
+    }
+    for (const part of parts) {
+      const a = part.length;
+      if (a < minA || a > maxA) continue;
+      let bx0 = W, bx1 = -1, by0 = H, by1 = -1, sx = 0, sy = 0;
+      for (const p of part) {
+        const x = p % W, y = (p / W) | 0;
+        if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
+        sx += x; sy += y;
+      }
+      const bw2 = bx1 - bx0 + 1, bh2 = by1 - by0 + 1;
+      if (a / (bw2 * bh2) < 0.45 || Math.max(bw2, bh2) / Math.min(bw2, bh2) > 3) continue;
+      out.push({ pixels: part, area: a, iou: 1, cx: sx / a, cy: sy / a });
+    }
+  }
+  return { colonies: out, thr, pol };
+}
+/* LIGHT-CORE-END */
+
+async function runLight() {
+  if (running || !base) return;
+  colonies.clear(); nextId = 1; labelMap.fill(0);
+  running = true; cancelFlag = false; updateButtons();
+  setBusy("検出中…"); setRunStatus(""); setProg("30%");
+  await new Promise((r) => setTimeout(r, 40));
+  try {
+    const rgba = base.getContext("2d").getImageData(0, 0, W, H).data;
+    const res = detectLight(rgba, W, H, {
+      roi, minD: +$("minD").value, maxD: +$("maxD").value,
+      sens: +$("sens").value, polar: $("polar").value
+    });
+    for (const c of res.colonies) addColony(c);
+    setProg("100%");
+    setRunStatus(`完了。${res.pol > 0 ? "背景より明るい" : "背景より暗い"}コロニーとして検出しました。誤りは「追加」「削除」で直せます。`);
+  } catch (e) {
+    console.error(e);
+    setRunStatus("検出中にエラー: " + (e.message || e), true);
+  } finally {
+    setBusy(""); running = false; updateButtons(); updateCount(); queueRender();
+  }
+}
 
 /* ---------- Counting ---------- */
 function stats() {
@@ -500,7 +834,8 @@ function stats() {
 }
 function updateCount() {
   const s = stats();
-  $("total").textContent = s.n ? s.total : (base ? "0" : "–");
+  const shown = s.n ? s.total : (base ? "0" : "–");
+  $("total").textContent = shown; $("mTotal").textContent = shown;
   $("sub").textContent = s.n
     ? (s.extra > 0 ? `検出 ${s.n} 個 ＋ 塊の換算 ${s.extra} 個` : `検出 ${s.n} 個`)
     : "";
@@ -562,22 +897,39 @@ function toImg(e) {
   return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
 }
 let dragging = false;
-view.addEventListener("pointerdown", async (e) => {
+view.addEventListener("pointerdown", (e) => {
+  if (!base || mode !== "roi") return;
+  const [x, y] = toImg(e);
+  dragging = true; view.setPointerCapture(e.pointerId);
+  roi = { cx: x, cy: y, r: 1 }; queueRender();
+});
+view.addEventListener("click", async (e) => {
   if (!base) return;
   const [x, y] = toImg(e);
-  if (mode === "roi") {
-    dragging = true; view.setPointerCapture(e.pointerId);
-    roi = { cx: x, cy: y, r: 1 }; queueRender();
-  } else if (mode === "remove") {
+  if (mode === "remove") {
     let id = labelMap[Math.round(y) * W + Math.round(x)];
     if (!id) {
-      let bd = 15 * 15;
+      let bd = 20 * 20;
       for (const c of colonies.values()) {
         const d2 = (c.cx - x) ** 2 + (c.cy - y) ** 2;
         if (d2 < bd) { bd = d2; id = c.id; }
       }
     }
     if (id) { removeColony(id); updateCount(); queueRender(); }
+  } else if (mode === "add" && engine === "light") {
+    const list = [...colonies.values()];
+    let rad = (+$("minD").value + +$("maxD").value) / 4;
+    if (list.length) {
+      const ar = list.map((c) => c.area).sort((a, b) => a - b);
+      rad = Math.sqrt(ar[Math.floor(ar.length / 2)] / Math.PI);
+    }
+    const pixels = [], cx = Math.round(x), cy = Math.round(y), ri = Math.ceil(rad);
+    for (let yy = cy - ri; yy <= cy + ri; yy++) for (let xx = cx - ri; xx <= cx + ri; xx++) {
+      if (xx >= 0 && yy >= 0 && xx < W && yy < H && (xx - cx) ** 2 + (yy - cy) ** 2 <= rad * rad) pixels.push(yy * W + xx);
+    }
+    if (pixels.length && addColony({ pixels, area: pixels.length, iou: 1, cx, cy }, 0.5)) {
+      updateCount(); queueRender(); setRunStatus("コロニーを追加しました（中央値の大きさの円で登録）。");
+    } else setRunStatus("そこには追加できません（範囲外、または既存のコロニーと重なっています）。", true);
   } else if (mode === "add") {
     if (running || !embeddings) return;
     const xi = Math.round(x), yi = Math.round(y);
@@ -588,7 +940,7 @@ view.addEventListener("pointerdown", async (e) => {
       const res = await segmentAt(xi, yi);
       const cand = pickCandidate(res, xi, yi, P);
       if (cand && addColony(cand, 0.5)) { updateCount(); queueRender(); setRunStatus("コロニーを追加しました。"); }
-      else setRunStatus("その位置にコロニーを検出できませんでした。直径の設定を見直すか、中心付近をクリックしてください。", true);
+      else setRunStatus("その位置にコロニーを検出できませんでした。直径の設定を見直すか、中心付近をタップしてください。", true);
     } catch (err) { console.error(err); setRunStatus("エラー: " + (err.message || err), true); }
     finally { setBusy(""); }
   }
@@ -600,6 +952,7 @@ view.addEventListener("pointermove", (e) => {
   queueRender();
 });
 view.addEventListener("pointerup", () => { dragging = false; });
+view.addEventListener("pointercancel", () => { dragging = false; });
 
 /* ---------- Export ---------- */
 function download(name, blob) {
@@ -622,6 +975,90 @@ $("dlPng").onclick = () => {
   render();
   view.toBlob((b) => download("colonies_result.png", b), "image/png");
 };
+
+/* ---------- Help popovers ---------- */
+const HELP = {
+  engine: ["検出方式", [
+    "<b style='display:inline'>軽量（SAMなし）</b>：背景との明暗の差でコロニーを見つけ、くっついたものは形から分けます。メモリをほとんど使わないので、スマホ向きです。モデルの読み込みもありません。",
+    "<b style='display:inline'>SAM（高精度）</b>：AIモデルで1個ずつ輪郭を切り出します。淡いコロニーや複雑な背景に強い反面、モデルの読み込みに数十MB以上と大量のメモリが必要です。PC向きで、スマホでは強制終了することがあります。",
+    "<span class='tip'>まず軽量で試し、見落としや誤検出が多いときにPCでSAMを使うのがお勧めです。</span>"]],
+  polar: ["コロニーの色", [
+    "寒天（背景）に対して、コロニーが明るく見えるか暗く見えるかを指定します。",
+    "「自動」は画像の明暗の偏りから判断します。うまく検出されないときは、手動で切り替えてください。",
+    "<span class='tip'>白っぽいコロニーが色付き寒天にある場合は「明るい」、黒い背景に映るときも「明るい」が目安です。</span>"]],
+  sens: ["検出感度", [
+    "背景との差がどれだけあればコロニーとみなすかを、自動で決めた基準に対する倍率で調整します。",
+    "上げる（1より大きくする）と淡いコロニーも拾いますが、ノイズや影も拾いやすくなります。下げると確実なものだけになります。",
+    "<span class='tip'>見落としが多いときは上げ、背景の模様を拾うときは下げます。</span>"]],
+  spacing: ["探索点の間隔", [
+    "SAMに「ここに物体はありますか？」と尋ねる点を、格子状に並べる間隔です。",
+    "コロニーの直径より小さくすると、各コロニーに少なくとも1点が当たり、見落としが減ります。小さくするほど点の数が増え、処理は遅くなります。",
+    "<span class='tip'>目安：最小のコロニーの直径と同じか、やや小さい値。まず大きめで試し、見落としがあれば下げます。</span>"]],
+  minD: ["最小直径", [
+    "この直径（画像上のピクセル）より小さいマスクは、コロニーではなくノイズや傷として捨てます。",
+    "大きくしすぎると、小さなコロニーが消えます。",
+    "<span class='tip'>目安：最も小さいコロニーの直径の7〜8割。ゴミを拾う場合は上げます。</span>"]],
+  maxD: ["最大直径", [
+    "この直径より大きいマスクは、コロニーではないものとして捨てます。シャーレ全体、寒天の模様、フチの反射などを除外するための上限です。",
+    "小さくしすぎると、大きなコロニーや、くっついた塊が消えます。",
+    "<span class='tip'>目安：最大のコロニー（塊を含めて数えたいならその塊）の直径の1.2倍程度。</span>"]],
+  iou: ["SAMの信頼度しきい値", [
+    "SAMは点ごとに3つのマスク候補と、それぞれの「きれいに切り出せた度合い」（予測IoU）を返します。この値より低い候補は採用しません。",
+    "上げると誤検出が減りますが、輪郭が不鮮明なコロニーを取りこぼします。下げると拾いやすくなる代わりに、変な形のマスクが増えます。",
+    "<span class='tip'>目安：0.75〜0.90。コロニーが薄い・小さいときは下げます。</span>"]],
+  cluster: ["大きな塊の換算", [
+    "コロニーが重なって1つの大きなマスクになった場合に、個数を補正します。検出したマスクの面積の中央値を「コロニー1個分」とみなし、それより1.7倍を超えて大きいマスクは、面積 ÷ 中央値 を四捨五入した個数として数えます。",
+    "換算した塊には「×n」と表示されます。あくまで面積からの推定なので、重なりが多いときは目視で確認してください。",
+    "<span class='tip'>コロニーの大きさがもともと大きくばらつくプレートでは、オフにして検出数のまま数える方が正確です。検出が5個未満のときは換算しません。</span>"]]
+};
+const pop = $("pop");
+let popBtn = null;
+function closePop() {
+  pop.style.display = "none";
+  if (popBtn) { popBtn.setAttribute("aria-expanded", "false"); popBtn = null; }
+}
+function openPop(btn) {
+  const h = HELP[btn.dataset.help]; if (!h) return;
+  closePop();
+  popBtn = btn; btn.setAttribute("aria-expanded", "true");
+  pop.innerHTML = `<b>${h[0]}</b>` + h[1].map((t) => `<p>${t}</p>`).join("");
+  pop.style.display = "block";
+  const r = btn.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = Math.min(Math.max(8, r.left - 12), window.innerWidth - pw - 8);
+  let top = r.bottom + 8;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 8);
+  pop.style.left = left + "px"; pop.style.top = top + "px";
+}
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".help");
+  if (btn) { e.preventDefault(); popBtn === btn ? closePop() : openPop(btn); return; }
+  if (!pop.contains(e.target)) closePop();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const b = popBtn; closePop(); if (b) b.focus(); } });
+window.addEventListener("scroll", closePop, true);
+window.addEventListener("resize", closePop);
+
+document.body.dataset.engine = engine;
+document.querySelectorAll('input[name="engine"]').forEach((r) => {
+  r.checked = r.value === engine;
+  r.addEventListener("change", async () => {
+    if (!r.checked) return;
+    engine = r.value;
+    document.body.dataset.engine = engine;
+    closePop(); updateButtons();
+    if (engine === "sam") {
+      if (isMobile) setRunStatus("スマホではメモリ不足でブラウザが停止することがあります。", true);
+      if (base && !embeddings) {
+        setBusy("モデルを準備中…");
+        await ensureModel();
+        setBusy("");
+        if (model) await encodeImage();
+      } else ensureModel();
+    } else {
+      setRunStatus("準備できました。「自動検出」を押してください。");
+    }
+  });
+});
 
 setMode("roi");
 updateButtons();
