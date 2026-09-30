@@ -276,10 +276,16 @@
 <div id="pop" role="dialog"></div>
 
 <script type="module">
-import { SamModel, AutoProcessor, RawImage, Tensor, env }
-  from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2";
-
-env.allowLocalModels = false;
+// SAM用ライブラリは、SAM方式を選んだときだけ読み込む（軽量方式は外部通信なしで動く）
+const TF_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2";
+let SamModel, AutoProcessor, RawImage, Tensor, env;
+async function loadLib() {
+  if (env) return;
+  const m = await import(TF_URL);
+  ({ SamModel, AutoProcessor, RawImage, Tensor, env } = m);
+  env.allowLocalModels = false;
+  try { env.backends.onnx.wasm.numThreads = 1; } catch {}
+}
 const MODEL_ID = "Xenova/slimsam-77-uniform";
 const MAX_SIDE = 1024;
 
@@ -349,7 +355,6 @@ function updateButtons() {
 
 /* ---------- Model ---------- */
 const isMobile = matchMedia("(pointer:coarse)").matches;
-try { env.backends.onnx.wasm.numThreads = 1; } catch {}
 let modelPromise = null;
 function ensureModel() { return (modelPromise ||= loadModel()); }
 async function loadModel() {
@@ -366,6 +371,8 @@ async function loadModel() {
     return [m, pr];
   };
   try {
+    setModelStatus("ライブラリを取得中…");
+    await loadLib();
     setModelStatus("モデルを取得中…（初回のみ時間がかかります）");
     try {
       // スマホでは量子化モデルでメモリを節約する
