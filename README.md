@@ -1,5 +1,7 @@
 # colony_counter_sam
 
+Github Pages: [https://fuji3to4.github.io/colony_counter_sam/](https://fuji3to4.github.io/colony_counter_sam/)
+
 ## E. coli Colony Counter
 
 A browser-based tool for detecting and counting colonies in plate images. Choose lightweight image processing or SAM segmentation, then review and manually adjust the results. Images are processed locally and are not uploaded.
