@@ -1,7 +1,7 @@
 export const translations = {
   ja: {
     "app.title": "大腸菌コロニーカウンタ",
-    "header.description": "軽量な画像処理と SlimSAM の2つの方式を選べます。どちらもブラウザ内で動き、画像は外部に送信されません。",
+    "header.description": "軽量な画像処理と SAM の2つの方式を選べます。どちらもブラウザ内で動き、画像は外部に送信されません。",
     "language.label": "表示言語",
     "toolbar.aria": "編集モード",
     "mode.roi": "シャーレ範囲",
@@ -51,7 +51,7 @@ export const translations = {
     "action.downloadRecord": "実験記録 (CSV)",
     "action.downloadImage": "結果画像 (PNG)",
     "mobile.toolbar": "操作バー",
-    "hint.roi": "シャーレの中心からふちまで、指またはマウスでドラッグして範囲を指定",
+    "hint.roi": "シャーレを囲むようにドラッグして円を作成（Alt/Ctrlで中心から）。円の内側をドラッグで移動、□ハンドルで大きさ調整、矢印キーで微調整（Shiftで10px）",
     "hint.add": "見落としたコロニーをタップ",
     "hint.remove": "誤検出をタップして削除",
     "status.modelFile": "モデルを取得中… {file} {percent}%",
@@ -153,7 +153,7 @@ export const translations = {
   },
   en: {
     "app.title": "E. coli Colony Counter",
-    "header.description": "Choose lightweight image processing or SlimSAM. Both run in your browser; images are never uploaded.",
+    "header.description": "Choose lightweight image processing or SAM. Both run in your browser; images are never uploaded.",
     "language.label": "Language",
     "toolbar.aria": "Editing tools",
     "mode.roi": "Plate area",
@@ -203,7 +203,7 @@ export const translations = {
     "action.downloadRecord": "Experiment record (CSV)",
     "action.downloadImage": "Result image (PNG)",
     "mobile.toolbar": "Controls",
-    "hint.roi": "Drag from the center of the plate to its edge to set the analysis area",
+    "hint.roi": "Drag a box around the plate to draw the circle (Alt/Ctrl: from center). Drag inside to move, drag a □ handle to resize, arrow keys to nudge (Shift: 10 px)",
     "hint.add": "Tap a missed colony to add it",
     "hint.remove": "Tap a false detection to remove it",
     "status.modelFile": "Downloading model… {file} {percent}%",

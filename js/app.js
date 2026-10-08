@@ -1,6 +1,7 @@
 import { detectLight } from "./light-engine.js";
 import { getLocale, initI18n, translate } from "./i18n.mjs";
 import { requestPersistentStorage } from "./model-cache.mjs";
+import { circleFromBox, circleFromCenter, handlePoints, hitTest, moveRoi, resizeFromHandle } from "./roi-edit.mjs";
 const t = (key, values) => translate(key, getLocale(), values);
 initI18n();
 // SAM用ライブラリは、SAM方式を選んだときだけ読み込む（軽量方式は外部通信なしで動く）
@@ -89,6 +90,8 @@ function setMode(m) {
   $("mAdd").setAttribute("aria-pressed", m === "add");
   $("mDel").setAttribute("aria-pressed", m === "remove");
   view.className = m;
+  view.style.cursor = "";
+  if (base) queueRender();                                   // ハンドル表示の切替
   $("modeHint").textContent = t(hints[m]);
 }
 $("mRoi").onclick = () => setMode("roi");
@@ -237,6 +240,13 @@ $("view").addEventListener("dblclick", () => {}); // no-op
 document.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT") return;
   if (e.key === "o") fileInput.click();
+  // 矢印キーでシャーレ範囲を微調整（Shiftで10px）
+  const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (step && roi && base && mode === "roi" && !/^(SELECT|TEXTAREA)$/.test(e.target.tagName)) {
+    e.preventDefault();
+    const k = e.shiftKey ? 10 : 1;
+    roi = moveRoi(roi, step[0] * k, step[1] * k); queueRender();
+  }
 });
 
 /* ---------- SAM segmentation of one point ---------- */
@@ -497,6 +507,13 @@ function render() {
     ctx.setLineDash([10, 7]);
     ctx.strokeStyle = "#ffd166";
     ctx.beginPath(); ctx.arc(roi.cx, roi.cy, roi.r, 0, Math.PI * 2); ctx.stroke();
+    if (mode === "roi") {                                     // PowerPoint風のリサイズハンドル
+      const hs = Math.max(4, 5 * pxScale());
+      ctx.setLineDash([]); ctx.fillStyle = "#fff"; ctx.lineWidth = Math.max(1, hs / 3);
+      for (const [hx, hy] of Object.values(handlePoints(roi))) {
+        ctx.fillRect(hx - hs, hy - hs, 2 * hs, 2 * hs); ctx.strokeRect(hx - hs, hy - hs, 2 * hs, 2 * hs);
+      }
+    }
     ctx.restore();
   }
 }
@@ -506,12 +523,18 @@ function toImg(e) {
   const r = view.getBoundingClientRect();
   return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
 }
-let dragging = false;
+// シャーレ範囲：空き領域ドラッグで作成（Alt/Ctrlで中心から）、内側で移動、ハンドルで反対側固定のリサイズ
+const HANDLE_PX = 12;                                         // ハンドル当たり半径（画面px）
+const pxScale = () => W / view.getBoundingClientRect().width; // 画面px → 画像px
+const ROI_CURSORS = { move: "move", create: "crosshair", n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize" };
+let drag = null;                                              // {kind, dir?, start:[x,y], roi0, fromCenter}
 view.addEventListener("pointerdown", (e) => {
   if (!base || mode !== "roi") return;
   const [x, y] = toImg(e);
-  dragging = true; view.setPointerCapture(e.pointerId);
-  roi = { cx: x, cy: y, r: 1 }; queueRender();
+  const hit = hitTest(roi, x, y, HANDLE_PX * pxScale());
+  drag = { ...hit, start: [x, y], roi0: roi, fromCenter: e.altKey || e.ctrlKey };
+  view.setPointerCapture(e.pointerId);
+  if (hit.kind === "create") { roi = circleFromBox(x, y, x, y); queueRender(); }
 });
 view.addEventListener("click", async (e) => {
   if (!base) return;
@@ -557,13 +580,22 @@ view.addEventListener("click", async (e) => {
   }
 });
 view.addEventListener("pointermove", (e) => {
-  if (!dragging) return;
+  if (!base || mode !== "roi") return;
   const [x, y] = toImg(e);
-  roi.r = Math.max(5, Math.hypot(x - roi.cx, y - roi.cy));
+  if (!drag) {
+    const hit = hitTest(roi, x, y, HANDLE_PX * pxScale());
+    view.style.cursor = ROI_CURSORS[hit.dir || hit.kind];
+    return;
+  }
+  const [x0, y0] = drag.start;
+  if (drag.kind === "create") roi = drag.fromCenter ? circleFromCenter(x0, y0, x, y) : circleFromBox(x0, y0, x, y);
+  else if (drag.kind === "move") roi = moveRoi(drag.roi0, x - x0, y - y0);
+  else roi = resizeFromHandle(drag.roi0, drag.dir, x, y);
   queueRender();
 });
-view.addEventListener("pointerup", () => { dragging = false; });
-view.addEventListener("pointercancel", () => { dragging = false; });
+view.addEventListener("pointerup", () => { drag = null; });
+view.addEventListener("pointercancel", () => { drag = null; });
+view.addEventListener("pointerleave", () => { if (!drag) view.style.cursor = ""; });
 
 /* ---------- Export ---------- */
 function download(name, blob) {
