@@ -18,7 +18,7 @@ async function loadLib(url) {
   const m = await import(url);
   tfMod = m; ({ AutoProcessor, RawImage, Tensor, env } = m); libUrl = url;
   env.allowLocalModels = false;
-  env.useBrowserCache = true;
+  env.useBrowserCache = typeof globalThis.caches !== "undefined";
   try { env.backends.onnx.wasm.numThreads = 1; } catch {}
 }
 const MAX_SIDE = 1024;
