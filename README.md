@@ -23,6 +23,8 @@ A browser-based tool for detecting and counting colonies in plate images. Choose
 
 The lightweight method works offline. SAM downloads its library and selected model from the internet on demand; the initial download may take time. Images remain in the browser.
 
+SAM model files are stored in the browser cache, so later loads can reuse them. They may be downloaded again if private browsing is used, browser or site data is cleared, the browser evicts storage, or persistent storage is denied. Model initialization still runs after each page reload.
+
 ## 大腸菌コロニーカウンタ
 
 シャーレ画像のコロニーを検出・計数するブラウザアプリです。軽量な画像処理またはSAMによる領域分割を選べます。結果は手動で修正でき、画像はアップロードされません。
@@ -43,6 +45,8 @@ The lightweight method works offline. SAM downloads its library and selected mod
 4. 結果を確認し、必要に応じて追加・削除します。コロニー一覧・実験記録はCSV、結果画像はPNGで保存できます。
 
 軽量方式はオフラインで動作します。SAM方式ではライブラリと選択したモデルをインターネットから取得するため、初回の読み込みに時間がかかる場合があります。画像はブラウザ内で処理されます。
+
+SAMのモデルファイルはブラウザのキャッシュに保存され、次回以降に再利用されます。ただし、プライベートブラウズ、ブラウザやサイトデータの削除、ストレージの自動削除、永続化の拒否などで保持されない場合は、再取得されることがあります。ページを再読み込みすると、モデルの初期化は毎回行われます。
 
 ## License
 

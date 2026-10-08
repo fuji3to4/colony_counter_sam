@@ -1,5 +1,6 @@
 import { detectLight } from "./light-engine.js";
 import { getLocale, initI18n, translate } from "./i18n.mjs";
+import { requestPersistentStorage } from "./model-cache.mjs";
 const t = (key, values) => translate(key, getLocale(), values);
 initI18n();
 // SAM用ライブラリは、SAM方式を選んだときだけ読み込む（軽量方式は外部通信なしで動く）
@@ -17,6 +18,7 @@ async function loadLib(url) {
   const m = await import(url);
   tfMod = m; ({ AutoProcessor, RawImage, Tensor, env } = m); libUrl = url;
   env.allowLocalModels = false;
+  env.useBrowserCache = true;
   try { env.backends.onnx.wasm.numThreads = 1; } catch {}
 }
 const MAX_SIDE = 1024;
@@ -131,6 +133,7 @@ async function loadModel() {
   try {
     setModelStatus("status.libraryLoading");
     await loadLib(spec.lib);
+    await requestPersistentStorage(navigator.storage);
     setModelStatus("status.modelDownloading", { model: spec.label });
     // スマホのSlimSAMは量子化でメモリ節約 / SAM 3 はWebGPUが使えれば使う
     const first = samKey === "slim" ? (isMobile ? { dtype: "q8" } : {})
